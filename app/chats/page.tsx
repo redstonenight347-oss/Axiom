@@ -7,6 +7,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  error?: boolean;
 }
 
 const WELCOME_SUGGESTIONS = [
@@ -42,28 +43,89 @@ export default function ChatsPage() {
   const AIResponse = async (userMessage: string) => {
     setIsTyping(true);
 
-    try {
+    const assistantId = crypto.randomUUID();
+    const assistantMsg: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
 
+    setMessages((prev) => [...prev, assistantMsg]);
+
+    try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userText: userMessage })
+        body: JSON.stringify({ userText: userMessage }),
       });
-      const aiResponse = await res.json();
 
-      const response: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: aiResponse.error ?? aiResponse.reply,
-        timestamp: new Date(),
-      };
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantId
+              ? { ...msg, content: errorData.error ?? "Something went wrong", error: true }
+              : msg
+          )
+        );
+        return;
+      }
 
-      setMessages((prev) => [...prev, response]);
-    }
-    catch (err) {
-      console.log(err)
-    }
-    finally {
+      if (!res.body) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantId
+              ? { ...msg, content: "No response stream available", error: true }
+              : msg
+          )
+        );
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line) continue;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? { ...msg, content: msg.content + line }
+                : msg
+            )
+          );
+        }
+      }
+
+      if (buffer) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantId
+              ? { ...msg, content: msg.content + buffer }
+              : msg
+          )
+        );
+      }
+    } catch (err) {
+      console.log(err);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantId
+            ? { ...msg, error: true }
+            : msg
+        )
+      );
+    } finally {
       setIsTyping(false);
     }
   };
@@ -115,8 +177,8 @@ export default function ChatsPage() {
     }, 150);
   };
 
-  // const formatTime = (d: Date) =>
-  //   d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const isEmpty = messages.length === 0;
 
@@ -248,50 +310,36 @@ export default function ChatsPage() {
               <div
                 className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${msg.role === "user"
                   ? "bg-linear-to-br from-purple-600/80 to-indigo-600/80 text-white rounded-br-md shadow-lg shadow-purple-500/10"
-                  : "bg-white/5 text-white/85 border border-white/6 rounded-bl-md backdrop-blur-sm"
+                  : `bg-white/5 text-white/85 border rounded-bl-md backdrop-blur-sm ${msg.error ? "border-red-400/40" : "border-white/6"}`
                   }`}
               >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                <span
-                  className={`block text-[10px] mt-2 ${msg.role === "user" ? "text-white/40 text-right" : "text-white/25"
-                    }`}
-                >
-                  {/* {formatTime(msg.timestamp)} */}
-                </span>
+                {msg.role === "assistant" && !msg.content && isTyping ? (
+                  <div className="flex gap-1.5 py-1">
+                    <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
+                {msg.error && (
+                  <span className="block text-[10px] mt-2 text-red-400/80">
+                    Error generating response
+                  </span>
+                )}
+                {!(msg.role === "assistant" && isTyping && i === messages.length - 1) && (
+                  <span
+                    className={`block text-[10px] mt-2 ${msg.role === "user" ? "text-white/40 text-right" : "text-white/25"
+                      }`}
+                  >
+                    {formatTime(msg.timestamp)}
+                  </span>
+                )}
               </div>
             </div>
           ))}
 
-          {/* Typing indicator */}
-          {isTyping && (
-            <div className="flex gap-3 animate-message-in">
-              <div className="shrink-0 mt-1">
-                <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-linear-to-br from-purple-500/20 to-cyan-400/20 border border-white/8">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-purple-300/80"
-                  >
-                    <path d="M12 2L2 7l10 5 10-5-10-5Z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-              </div>
-              <div className="bg-white/5 border border-white/6 rounded-2xl rounded-bl-md px-5 py-4 backdrop-blur-sm">
-                <div className="flex gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:0ms]" />
-                  <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
-                  <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
-                </div>
-              </div>
-            </div>
-          )}
+
 
           <div ref={messagesEndRef} />
         </div>

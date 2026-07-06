@@ -20,7 +20,7 @@ export default function ChatsPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const   textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,18 +39,33 @@ export default function ChatsPage() {
     }
   }, [input]);
 
-  const simulateAIResponse = (userMessage: string) => {
+  const AIResponse = async (userMessage: string) => {
     setIsTyping(true);
-    setTimeout(() => {
+
+    try {
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userText: userMessage })
+      });
+      const aiResponse = await res.json();
+
       const response: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: `That's a great prompt! You said: "${userMessage}". I'm Axiom — once I'm connected to a real model, I'll give you a much better answer. 🚀`,
+        content: aiResponse.error ?? aiResponse.reply,
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, response]);
+    }
+    catch (err) {
+      console.log(err)
+    }
+    finally {
       setIsTyping(false);
-    }, 1200 + Math.random() * 800);
+    }
   };
 
   const handleSend = () => {
@@ -69,7 +84,7 @@ export default function ChatsPage() {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-    simulateAIResponse(trimmed);
+    AIResponse(trimmed);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -96,12 +111,12 @@ export default function ChatsPage() {
       };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
-      simulateAIResponse(text);
+      AIResponse(text);
     }, 150);
   };
 
-  const formatTime = (d: Date) =>
-    d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  // const formatTime = (d: Date) =>
+  //   d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const isEmpty = messages.length === 0;
 
@@ -132,7 +147,7 @@ export default function ChatsPage() {
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <div> 
+        <div>
           <h1 className="text-[15px] font-semibold tracking-tight">Axiom</h1>
           <p className="text-[11px] text-white/40 leading-none mt-0.5">
             Advanced AI&ensp;·&ensp;Online
@@ -203,9 +218,8 @@ export default function ChatsPage() {
           {messages.map((msg, i) => (
             <div
               key={msg.id}
-              className={`flex gap-3 animate-message-in ${
-                msg.role === "user" ? "flex-row-reverse" : ""
-              }`}
+              className={`flex gap-3 animate-message-in ${msg.role === "user" ? "flex-row-reverse" : ""
+                }`}
               style={{ animationDelay: `${i * 40}ms` }}
             >
               {/* Avatar */}
@@ -232,19 +246,17 @@ export default function ChatsPage() {
 
               {/* Bubble */}
               <div
-                className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-linear-to-br from-purple-600/80 to-indigo-600/80 text-white rounded-br-md shadow-lg shadow-purple-500/10"
-                    : "bg-white/5 text-white/85 border border-white/6 rounded-bl-md backdrop-blur-sm"
-                }`}
+                className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${msg.role === "user"
+                  ? "bg-linear-to-br from-purple-600/80 to-indigo-600/80 text-white rounded-br-md shadow-lg shadow-purple-500/10"
+                  : "bg-white/5 text-white/85 border border-white/6 rounded-bl-md backdrop-blur-sm"
+                  }`}
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
                 <span
-                  className={`block text-[10px] mt-2 ${
-                    msg.role === "user" ? "text-white/40 text-right" : "text-white/25"
-                  }`}
+                  className={`block text-[10px] mt-2 ${msg.role === "user" ? "text-white/40 text-right" : "text-white/25"
+                    }`}
                 >
-                  {formatTime(msg.timestamp)}
+                  {/* {formatTime(msg.timestamp)} */}
                 </span>
               </div>
             </div>

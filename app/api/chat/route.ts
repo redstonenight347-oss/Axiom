@@ -1,69 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
+import { genAI, GEMINI_MODEL } from "@/lib/ai/config";
+import { webSearchToolDeclaration, WEB_SEARCH_TOOL_NAME } from "@/lib/ai/tools";
+import { TavilySearchProvider } from "@/lib/ai/search/tavily";
 
 export async function POST(req: NextRequest) {
   // User verification here
 
   const { userText } = await req.json();
 
+  if (!userText) {
+    return NextResponse.json({ error: "Missing userText" }, { status: 400 });
+  }
+
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?alt=sse&key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: userText }] }],
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      console.log(response);
-      return NextResponse.json({ error: "LLM fetch failed" }, { status: 502 });
-    }
-
-    if (!response.body) {
-      return NextResponse.json(
-        { error: "No response body from LLM" },
-        { status: 502 }
-      );
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+    const chat = genAI.chats.create({
+      model: GEMINI_MODEL,
+      config: {
+        tools: [{ functionDeclarations: [webSearchToolDeclaration] }],
+      },
+    });
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          let currentMessage: any = userText;
+          
           while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+            const responseStream = await chat.sendMessageStream(currentMessage);
+            let functionCallFound = false;
+            let currentFunctionCall: any = null;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data: ")) continue;
-
-              const jsonStr = trimmed.slice("data: ".length);
-              if (jsonStr === "[DONE]") continue;
-
-              try {
-                const parsed = JSON.parse(jsonStr);
-                const text =
-                  parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-                if (text) {
-                  controller.enqueue(
-                    new TextEncoder().encode(text + "\n")
-                  );
-                }
-              } catch {
-                // Ignore malformed JSON lines
+            for await (const chunk of responseStream) {
+              if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                currentFunctionCall = chunk.functionCalls[0];
+                functionCallFound = true;
+                break; // Stop streaming text, we need to handle the function
+              }
+              
+              if (chunk.text) {
+                // Ensure text chunks are sent with newlines as the frontend splits by \n
+                controller.enqueue(new TextEncoder().encode(chunk.text + "\n"));
               }
             }
+
+            if (functionCallFound && currentFunctionCall) {
+              if (currentFunctionCall.name === WEB_SEARCH_TOOL_NAME) {
+                try {
+                  const args = currentFunctionCall.args as { query: string; maxResults?: number };
+                  const searchProvider = new TavilySearchProvider();
+                  const results = await searchProvider.search(args.query, { maxResults: args.maxResults });
+                  
+                  currentMessage = [{
+                    functionResponse: {
+                      name: WEB_SEARCH_TOOL_NAME,
+                      response: { results }
+                    }
+                  }];
+                  // Continue the loop to send the function response and get the next stream
+                  continue;
+                } catch (error: any) {
+                  currentMessage = [{
+                    functionResponse: {
+                      name: WEB_SEARCH_TOOL_NAME,
+                      response: { error: error.message }
+                    }
+                  }];
+                  continue;
+                }
+              } else {
+                 // Unknown function call, just send a fake response to continue
+                 currentMessage = [{
+                    functionResponse: {
+                      name: currentFunctionCall.name,
+                      response: { error: "Function not implemented" }
+                    }
+                  }];
+                  continue;
+              }
+            }
+            
+            // If we get here, no function call was found, so the turn is complete.
+            break;
           }
         } catch (err) {
           console.error("Stream error:", err);
@@ -80,7 +97,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

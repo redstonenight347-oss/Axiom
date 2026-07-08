@@ -20,21 +20,39 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Fetch the initial stream response before creating the ReadableStream
+    // This allows us to catch quota/rate-limit errors early and return a proper HTTP status code
+    let firstStream;
+    try {
+      firstStream = await chat.sendMessageStream({ message: userText });
+    } catch (err: any) {
+      console.error("Initial Gemini stream call failed:", err);
+      const isRateLimit = err.status === 429 || err.message?.includes("Quota exceeded") || err.message?.includes("quota");
+      return NextResponse.json(
+        { 
+          error: isRateLimit 
+            ? "Gemini API rate limit or daily quota exceeded. Please try again in a moment." 
+            : "Failed to connect to Gemini API." 
+        }, 
+        { status: isRateLimit ? 429 : 502 }
+      );
+    }
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          let currentMessage: any = userText;
+          let responseStream = firstStream;
           
           while (true) {
-            const responseStream = await chat.sendMessageStream(currentMessage);
             let functionCallFound = false;
             let currentFunctionCall: any = null;
 
             for await (const chunk of responseStream) {
               if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                currentFunctionCall = chunk.functionCalls[0];
-                functionCallFound = true;
-                break; // Stop streaming text, we need to handle the function
+                if (!currentFunctionCall) {
+                  currentFunctionCall = chunk.functionCalls[0];
+                  functionCallFound = true;
+                }
               }
               
               if (chunk.text) {
@@ -50,31 +68,37 @@ export async function POST(req: NextRequest) {
                   const searchProvider = new TavilySearchProvider();
                   const results = await searchProvider.search(args.query, { maxResults: args.maxResults });
                   
-                  currentMessage = [{
-                    functionResponse: {
-                      name: WEB_SEARCH_TOOL_NAME,
-                      response: { results }
-                    }
-                  }];
-                  // Continue the loop to send the function response and get the next stream
+                  responseStream = await chat.sendMessageStream({
+                    message: [{
+                      functionResponse: {
+                        name: WEB_SEARCH_TOOL_NAME,
+                        response: { results }
+                      }
+                    }]
+                  });
+                  // Continue the loop to process the new stream
                   continue;
                 } catch (error: any) {
-                  currentMessage = [{
-                    functionResponse: {
-                      name: WEB_SEARCH_TOOL_NAME,
-                      response: { error: error.message }
-                    }
-                  }];
+                  responseStream = await chat.sendMessageStream({
+                    message: [{
+                      functionResponse: {
+                        name: WEB_SEARCH_TOOL_NAME,
+                        response: { error: error.message }
+                      }
+                    }]
+                  });
                   continue;
                 }
               } else {
                  // Unknown function call, just send a fake response to continue
-                 currentMessage = [{
-                    functionResponse: {
-                      name: currentFunctionCall.name,
-                      response: { error: "Function not implemented" }
-                    }
-                  }];
+                 responseStream = await chat.sendMessageStream({
+                   message: [{
+                     functionResponse: {
+                       name: currentFunctionCall.name,
+                       response: { error: "Function not implemented" }
+                     }
+                   }]
+                 });
                   continue;
               }
             }
@@ -83,7 +107,7 @@ export async function POST(req: NextRequest) {
             break;
           }
         } catch (err) {
-          console.error("Stream error:", err);
+          console.error("Stream execution error:", err);
           controller.error(err);
         } finally {
           controller.close();
@@ -100,4 +124,5 @@ export async function POST(req: NextRequest) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+
 }

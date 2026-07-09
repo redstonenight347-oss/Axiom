@@ -1,4 +1,5 @@
-import { genAI, GEMINI_MODEL, MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./config";
+import { MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./config";
+import { withModelFallback } from "./model-router";
 import type { ExecutedSearch } from "./executor";
 
 export interface SummarizedSearch {
@@ -77,14 +78,21 @@ async function summarizeOneSearch(
   ].join("\n");
 
   try {
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-      config: {
-        systemInstruction:
-          "Return only the summary followed by a 'Key Facts:' section. Be concise, factual, and tightly focused on the query. Avoid tangents.",
+    const response = await withModelFallback(
+      async (modelName) => {
+        const { GoogleGenAI } = await import("@google/genai");
+        const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        return genAI.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction:
+              "Return only the summary followed by a 'Key Facts:' section. Be concise, factual, and tightly focused on the query. Avoid tangents.",
+          },
+        });
       },
-    });
+      { label: `summarizer: ${search.query.slice(0, 40)}` }
+    );
 
     const text = response.text ?? "";
     const [summaryPart, ...keyFactsParts] = text.split(/\n*Key Facts:\n*/i);

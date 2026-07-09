@@ -1,6 +1,7 @@
-import { genAI, GEMINI_MODEL } from "./config";
+import { withModelFallback, createChat } from "./model-router";
 import type { WebSearchPlan } from "./tools";
 import type { SummarizedSearch } from "./summarizer";
+import type { ExecutedSearch } from "./executor";
 
 /**
  * Lightweight deduplication of key facts across summaries.
@@ -25,11 +26,7 @@ function deduplicateKeyFacts(summaries: SummarizedSearch[]): string[] {
   return deduped;
 }
 
-/**
- * Builds a compact prompt for the final report generator from the plan and summaries.
- * Only summary-level data is included, never raw Tavily content, to stay within token limits.
- */
-function buildReportPrompt(
+function buildReportPromptFromSummaries(
   userText: string,
   plan: WebSearchPlan,
   summaries: SummarizedSearch[]
@@ -103,20 +100,100 @@ function buildReportPrompt(
   ].join("\n");
 }
 
+function buildReportPromptFromRawResults(
+  userText: string,
+  plan: WebSearchPlan,
+  executedSearches: ExecutedSearch[]
+): string {
+  const sortedSearches = executedSearches.sort((a, b) => {
+    // We don't have priority here, so keep original order.
+    return 0;
+  });
+
+  const searchBlocks = sortedSearches
+    .map((search, index) => {
+      const sourceList = search.results
+        .map((result) => `- ${result.title} (${result.url})`)
+        .join("\n");
+
+      const resultsText = search.results
+        .map(
+          (result, rIndex) =>
+            `  [Result ${rIndex + 1}]\n  Title: ${result.title}\n  URL: ${result.url}\n  Content: ${result.content}`
+        )
+        .join("\n\n");
+
+      return [
+        `[Search ${index + 1}]`,
+        `Query: ${search.query}`,
+        `Purpose: ${search.purpose}`,
+        "Results:",
+        resultsText || "  No results found.",
+        "Sources:",
+        sourceList || "- None",
+      ].join("\n");
+    })
+    .join("\n\n");
+
+  const sectionsHint = plan.sections?.length
+    ? `Suggested sections (follow them closely, but you may adapt or merge if it serves the user's question):\n${plan.sections
+        .map((section) => `- ${section}`)
+        .join("\n")}`
+    : "";
+
+  return [
+    "You are an expert report writer. Write a clean, advanced report based on the provided web search results.",
+    "Your job is to SYNTHESIZE. Filter out non-user-friendly details, merge overlapping information, remove duplicates, resolve contradictions, and combine related points into one clear explanation.",
+    "Start with a direct answer to the user's question. Then expand into the requested format.",
+    "Do not over-explain tangential topics. Stay focused on what the user asked.",
+    "If the search results are insufficient, clearly state that limitation.",
+    "",
+    "=== User Prompt ===",
+    userText,
+    "",
+    "=== Overall Goal ===",
+    plan.overallGoal,
+    "",
+    "=== Target Audience ===",
+    plan.targetAudience,
+    "",
+    "=== Output Format ===",
+    plan.outputFormat,
+    "",
+    "=== Report Instructions ===",
+    plan.reportInstructions,
+    sectionsHint,
+    "",
+    "=== Web Search Results ===",
+    searchBlocks,
+    "",
+    "=== Final Instructions ===",
+    "Synthesize the above into the requested report format.",
+    "Include inline source URLs as citations where appropriate.",
+    "Do not introduce information that is not supported by the search results.",
+    "Do not list the search results one after another; combine them into a coherent report.",
+  ].join("\n");
+}
+
 /**
  * Streams the final report from Gemini.
- * Returns the async iterable stream so the caller can forward chunks to the client.
+ * Can consume either pre-summarized search data or raw executed search results.
  */
 export async function generateReportStream(
   userText: string,
   plan: WebSearchPlan,
-  summaries: SummarizedSearch[]
+  input: { summaries: SummarizedSearch[] } | { rawResults: ExecutedSearch[] }
 ) {
-  const prompt = buildReportPrompt(userText, plan, summaries);
+  const prompt =
+    "summaries" in input
+      ? buildReportPromptFromSummaries(userText, plan, input.summaries)
+      : buildReportPromptFromRawResults(userText, plan, input.rawResults);
 
-  const chat = genAI.chats.create({
-    model: GEMINI_MODEL,
-  });
-
-  return chat.sendMessageStream({ message: prompt });
+  return withModelFallback(
+    async (modelName) => {
+      const chat = createChat(modelName);
+      return chat.sendMessageStream({ message: prompt });
+    },
+    { label: "report-generator" }
+  );
 }

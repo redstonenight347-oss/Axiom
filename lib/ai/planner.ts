@@ -1,5 +1,6 @@
 import { FunctionCallingConfigMode } from "@google/genai";
-import { genAI, GEMINI_MODEL, MAX_PLANNER_SEARCHES } from "./config";
+import { MAX_PLANNER_SEARCHES } from "./config";
+import { withModelFallback, createChat } from "./model-router";
 import {
   webSearchPlanToolDeclaration,
   WEB_SEARCH_PLAN_TOOL_NAME,
@@ -7,29 +8,31 @@ import {
 } from "./tools";
 
 /**
- * Asks Gemini to plan how the user's prompt should be answered using live web data.
- * Returns a structured plan: what to search, what to extract, and how to assemble the final report.
+ * Asks Gemini to decide the cheapest viable strategy for answering the user's prompt.
+ * Returns a structured plan: strategy, optional direct answer, searches, and report instructions.
  */
 export async function planWebSearches(
   userText: string
 ): Promise<WebSearchPlan> {
-  const chat = genAI.chats.create({
-    model: GEMINI_MODEL,
-    config: {
-      tools: [{ functionDeclarations: [webSearchPlanToolDeclaration] }],
-      toolConfig: {
-        functionCallingConfig: {
-          // Force the model to call the planner tool.
-          mode: FunctionCallingConfigMode.ANY,
-          allowedFunctionNames: [WEB_SEARCH_PLAN_TOOL_NAME],
+  const response = await withModelFallback(
+    async (modelName) => {
+      const chat = createChat(modelName);
+      return chat.sendMessage({
+        message: userText,
+        config: {
+          tools: [{ functionDeclarations: [webSearchPlanToolDeclaration] }],
+          toolConfig: {
+            functionCallingConfig: {
+              // Force the model to call the planner tool.
+              mode: FunctionCallingConfigMode.ANY,
+              allowedFunctionNames: [WEB_SEARCH_PLAN_TOOL_NAME],
+            },
+          },
         },
-      },
+      });
     },
-  });
-
-  const response = await chat.sendMessage({
-    message: userText,
-  });
+    { label: "planner" }
+  );
 
   const functionCall = response.candidates?.[0]?.content?.parts?.find(
     (part) => part.functionCall?.name === WEB_SEARCH_PLAN_TOOL_NAME
@@ -45,10 +48,14 @@ export async function planWebSearches(
   const clampedSearches = (args.searches ?? []).slice(0, MAX_PLANNER_SEARCHES);
 
   return {
+    strategy: args.strategy ?? "direct_answer",
+    directAnswer: args.directAnswer,
+    askForClarification: args.askForClarification,
     overallGoal: args.overallGoal ?? "Answer the user's question accurately.",
     targetAudience: args.targetAudience ?? "general audience",
     outputFormat: args.outputFormat ?? "markdown report",
     searches: clampedSearches,
+    needsSummarization: args.needsSummarization ?? false,
     reportInstructions:
       args.reportInstructions ??
       "Synthesize the search summaries into a clear, accurate report.",

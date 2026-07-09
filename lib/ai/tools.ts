@@ -45,18 +45,42 @@ export const webSearchToolDeclaration: FunctionDeclaration = {
 // ---------------------------------------------------------------------------
 
 export const webSearchPlanSchema = z.object({
+  strategy: z
+    .enum([
+      "direct_answer",
+      "web_search_direct_report",
+      "web_search_then_report",
+    ])
+    .describe(
+      "The execution strategy. direct_answer = answer now with no web search. web_search_direct_report = search then generate report from raw results. web_search_then_report = search, summarize, then generate report."
+    ),
+  directAnswer: z
+    .string()
+    .optional()
+    .describe(
+      "If strategy is direct_answer, the final answer to stream to the user."
+    ),
+  askForClarification: z
+    .string()
+    .optional()
+    .describe(
+      "If the prompt is unclear and you are unsure which strategy to use, ask the user a clarifying question instead of guessing."
+    ),
   overallGoal: z
     .string()
+    .optional()
     .describe(
       "What the final report should accomplish for the user. Be specific about the desired outcome."
     ),
   targetAudience: z
     .string()
+    .optional()
     .describe(
       "Who the report is for and the desired depth/tone, e.g. 'technical expert', 'beginner', 'executive summary'."
     ),
   outputFormat: z
     .string()
+    .optional()
     .describe(
       "The format the final report should take, e.g. 'markdown report with headings, bullets, and a short summary'."
     ),
@@ -89,8 +113,14 @@ export const webSearchPlanSchema = z.object({
     .describe(
       "List of web search queries to run (0-5). Only include queries that are likely to retrieve current or factual information not known to the model."
     ),
+  needsSummarization: z
+    .boolean()
+    .describe(
+      "Whether the search results should be summarized per query before generating the report. The backend may override this if the raw results are small enough."
+    ),
   reportInstructions: z
     .string()
+    .optional()
     .describe(
       "Detailed instructions for how the final report generator should synthesize the summaries into the output."
     ),
@@ -109,12 +139,29 @@ export const WEB_SEARCH_PLAN_TOOL_NAME = "plan_web_searches";
 export const webSearchPlanToolDeclaration: FunctionDeclaration = {
   name: WEB_SEARCH_PLAN_TOOL_NAME,
   description:
-    "Plan how to answer the user's prompt using live web data. " +
-    "Output a clear processing plan: what to search, what to extract from each search, " +
-    "and how the final report should be assembled. Return an empty searches list if no web data is needed.",
+    "Decide the cheapest way to answer the user's prompt accurately. " +
+    "Choose direct_answer for basic questions that need no web data. " +
+    "Choose web_search_direct_report when web data is needed but results are likely small/simple. " +
+    "Choose web_search_then_report for deep, complex, or multi-topic questions. " +
+    "If you are genuinely unsure what the user wants, use askForClarification instead of guessing.",
   parameters: {
     type: Type.OBJECT,
     properties: {
+      strategy: {
+        type: Type.STRING,
+        description:
+          "The execution strategy. Must be one of: direct_answer, web_search_direct_report, web_search_then_report.",
+      },
+      directAnswer: {
+        type: Type.STRING,
+        description:
+          "If strategy is direct_answer, the final answer to stream to the user. Keep it clear and complete.",
+      },
+      askForClarification: {
+        type: Type.STRING,
+        description:
+          "If the prompt is unclear and you are unsure which strategy to use, ask the user a clarifying question instead of guessing.",
+      },
       overallGoal: {
         type: Type.STRING,
         description:
@@ -162,6 +209,11 @@ export const webSearchPlanToolDeclaration: FunctionDeclaration = {
           required: ["query", "purpose", "whatToExtract", "priority"],
         },
       },
+      needsSummarization: {
+        type: Type.BOOLEAN,
+        description:
+          "Whether the search results should be summarized per query before generating the report. The backend may override this if the raw results are small enough.",
+      },
       reportInstructions: {
         type: Type.STRING,
         description:
@@ -176,12 +228,6 @@ export const webSearchPlanToolDeclaration: FunctionDeclaration = {
         },
       },
     },
-    required: [
-      "overallGoal",
-      "targetAudience",
-      "outputFormat",
-      "searches",
-      "reportInstructions",
-    ],
+    required: ["strategy", "searches", "needsSummarization"],
   },
 };

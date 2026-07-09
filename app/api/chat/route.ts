@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL, MAX_SEARCH_RESULTS_PER_QUERY } from "@/lib/ai/config";
+import {
+  MAX_SEARCH_RESULTS_PER_QUERY,
+  MAX_RAW_CHARS_FOR_DIRECT_REPORT,
+} from "@/lib/ai/config";
 import { planWebSearches } from "@/lib/ai/planner";
 import { executeSearchPlan, allSearchesFailed } from "@/lib/ai/executor";
 import { summarizeSearchResults } from "@/lib/ai/summarizer";
 import { generateReportStream } from "@/lib/ai/report-generator";
+import { withModelFallback, createChat } from "@/lib/ai/model-router";
+
+function countRawResultChars(searches: { results: { content: string }[] }[]): number {
+  return searches.reduce(
+    (total, search) =>
+      total +
+      search.results.reduce((sum, result) => sum + (result.content?.length ?? 0), 0),
+    0
+  );
+}
 
 export async function POST(req: NextRequest) {
   // User verification here
@@ -19,11 +32,11 @@ export async function POST(req: NextRequest) {
 
   try {
     // -------------------------------------------------------------------------
-    // 1. Planner: decide how to answer using live web data.
+    // 1. Planner: decide the cheapest viable strategy.
     // -------------------------------------------------------------------------
     let plan;
     try {
-      console.log(`${logPrefix} Planning searches...`);
+      console.log(`${logPrefix} Planning...`);
       plan = await planWebSearches(userText);
       console.log(`${logPrefix} Plan:`, JSON.stringify(plan, null, 2));
     } catch (err: any) {
@@ -36,10 +49,41 @@ export async function POST(req: NextRequest) {
         {
           error: isRateLimit
             ? "Gemini API rate limit or daily quota exceeded. Please try again in a moment."
-            : "Failed to plan web searches.",
+            : "Failed to plan response.",
         },
         { status: isRateLimit ? 429 : 502 }
       );
+    }
+
+    // If the planner wants clarification, stream the question back to the user.
+    if (plan.askForClarification) {
+      console.log(`${logPrefix} Asking for clarification.`);
+      const clarificationStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(plan.askForClarification + "\n")
+          );
+          controller.close();
+        },
+      });
+      return new Response(clarificationStream, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+
+    // If the planner can answer directly, stream its answer. Only 1 Gemini call.
+    if (plan.strategy === "direct_answer") {
+      console.log(`${logPrefix} Direct answer strategy. Streaming answer.`);
+      const answer = plan.directAnswer ?? "I'm not sure how to answer that.";
+      const directStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(answer + "\n"));
+          controller.close();
+        },
+      });
+      return new Response(directStream, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     }
 
     // -------------------------------------------------------------------------
@@ -74,11 +118,21 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
-    // 3. Summarize each search query's results in parallel.
-    //    One LLM call per query keeps free-tier usage low.
+    // 3. Decide whether to summarize or pipe raw results straight to the report.
+    //    Override the planner's recommendation based on token budget.
     // -------------------------------------------------------------------------
+    const rawResultChars = countRawResultChars(executedSearches);
+    const shouldSummarize =
+      plan.needsSummarization &&
+      plan.searches.length > 2 &&
+      rawResultChars > MAX_RAW_CHARS_FOR_DIRECT_REPORT;
+
+    console.log(
+      `${logPrefix} Raw result chars: ${rawResultChars}. Will summarize: ${shouldSummarize}`
+    );
+
     const summaries =
-      executedSearches.length > 0
+      shouldSummarize && executedSearches.length > 0
         ? await summarizeSearchResults(plan, executedSearches)
         : [];
 
@@ -89,19 +143,28 @@ export async function POST(req: NextRequest) {
 
     // -------------------------------------------------------------------------
     // 4. Stream the final report back to the client.
-    //    If no searches were planned, answer directly from the user's prompt.
-    //    TODO: add fallback behavior here if desired (e.g. run a single broad
-    //    search when the planner returns no queries).
     // -------------------------------------------------------------------------
     let responseStream;
     try {
-      if (summaries.length > 0) {
-        console.log(`${logPrefix} Generating report stream...`);
-        responseStream = await generateReportStream(userText, plan, summaries);
+      if (summaries.length > 0 && !summaries.every((s) => s.error)) {
+        console.log(`${logPrefix} Generating report from summaries...`);
+        responseStream = await generateReportStream(userText, plan, {
+          summaries,
+        });
+      } else if (executedSearches.length > 0) {
+        console.log(`${logPrefix} Generating report from raw search results...`);
+        responseStream = await generateReportStream(userText, plan, {
+          rawResults: executedSearches,
+        });
       } else {
         console.log(`${logPrefix} No searches planned; answering directly.`);
-        const chat = genAI.chats.create({ model: GEMINI_MODEL });
-        responseStream = await chat.sendMessageStream({ message: userText });
+        responseStream = await withModelFallback(
+          async (modelName) => {
+            const chat = createChat(modelName);
+            return chat.sendMessageStream({ message: userText });
+          },
+          { label: "direct-answer" }
+        );
       }
     } catch (err: any) {
       console.error(`${logPrefix} Final report stream call failed:`, err);

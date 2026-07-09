@@ -1,0 +1,143 @@
+import { genAI, GEMINI_MODEL, MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./config";
+import type { ExecutedSearch } from "./executor";
+
+export interface SummarizedSearch {
+  query: string;
+  purpose: string;
+  priority: number;
+  summary: string;
+  keyFacts: string[];
+  sources: { title: string; url: string }[];
+  error?: string;
+}
+
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + "…";
+}
+
+/**
+ * Summarizes the results of a single executed search into a compact, query-focused summary.
+ * This is one LLM call per search query, keeping free-tier usage low.
+ */
+async function summarizeOneSearch(
+  search: ExecutedSearch,
+  whatToExtract: string,
+  priority: number
+): Promise<SummarizedSearch> {
+  if (search.error || search.results.length === 0) {
+    return {
+      query: search.query,
+      purpose: search.purpose,
+      priority,
+      summary: search.error ? `Search failed: ${search.error}` : "No results found.",
+      keyFacts: [],
+      sources: [],
+      error: search.error,
+    };
+  }
+
+  const sources = search.results.map((result) => ({
+    title: result.title,
+    url: result.url,
+  }));
+
+  const resultsContext = search.results
+    .map(
+      (result, index) =>
+        `[Result ${index + 1}]\nTitle: ${result.title}\nURL: ${result.url}\nContent: ${truncate(
+          result.content,
+          MAX_RESULT_CONTENT_CHARS
+        )}`
+    )
+    .join("\n\n");
+
+  const prompt = [
+    "You are a research assistant. Read the search results below and produce a concise summary.",
+    "",
+    "=== Search Query ===",
+    search.query,
+    "",
+    "=== Purpose ===",
+    search.purpose,
+    "",
+    "=== What to Extract ===",
+    whatToExtract,
+    "",
+    "=== Search Results ===",
+    resultsContext,
+    "",
+    "=== Output Instructions ===",
+    `Write a clear, focused summary in at most ${MAX_SUMMARY_CHARS} characters.`,
+    "Then list 3-7 key facts or important details as bullet points.",
+    "Do not include information that is not supported by the results.",
+  ].join("\n");
+
+  try {
+    const response = await genAI.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        systemInstruction:
+          "Return only the summary followed by a 'Key Facts:' section. Be concise and factual.",
+      },
+    });
+
+    const text = response.text ?? "";
+    const [summaryPart, ...keyFactsParts] = text.split(/\n*Key Facts:\n*/i);
+    const summary = summaryPart.trim();
+    const keyFacts = keyFactsParts
+      .join("\n")
+      .split("\n")
+      .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean);
+
+    return {
+      query: search.query,
+      purpose: search.purpose,
+      priority,
+      summary,
+      keyFacts,
+      sources,
+    };
+  } catch (error: any) {
+    return {
+      query: search.query,
+      purpose: search.purpose,
+      priority,
+      summary: `Summarization failed: ${error.message ?? "Unknown error"}`,
+      keyFacts: [],
+      sources,
+      error: error.message ?? "Summarization failed",
+    };
+  }
+}
+
+/**
+ * Summarizes each executed search in parallel.
+ * The plan tells each summarizer what to extract and the priority of the query.
+ */
+export async function summarizeSearchResults(
+  plan: {
+    searches: {
+      query: string;
+      purpose: string;
+      whatToExtract: string;
+      priority: number;
+    }[];
+  },
+  executedSearches: ExecutedSearch[]
+): Promise<SummarizedSearch[]> {
+  const planByQuery = new Map(
+    plan.searches.map((item) => [item.query, item])
+  );
+
+  const summaries = executedSearches.map(async (search) => {
+    const planItem = planByQuery.get(search.query);
+    const whatToExtract = planItem?.whatToExtract ?? "Extract the most relevant information.";
+    const priority = planItem?.priority ?? 3;
+    return summarizeOneSearch(search, whatToExtract, priority);
+  });
+
+  return Promise.all(summaries);
+}

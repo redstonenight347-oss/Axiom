@@ -13,6 +13,12 @@ if (!tavilyApiKey) {
 
 export const GEMINI_MODEL = "gemini-3.5-flash";
 
+// Token-safety / cost-safety limits for the web tooling pipeline.
+export const MAX_PLANNER_SEARCHES = 5;
+export const MAX_SEARCH_RESULTS_PER_QUERY = 3;
+export const MAX_RESULT_CONTENT_CHARS = 1500;
+export const MAX_SUMMARY_CHARS = 800;
+
 export const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
 
 export const env = {

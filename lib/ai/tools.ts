@@ -45,10 +45,20 @@ export const webSearchToolDeclaration: FunctionDeclaration = {
 // ---------------------------------------------------------------------------
 
 export const webSearchPlanSchema = z.object({
-  reasoning: z
+  overallGoal: z
     .string()
     .describe(
-      "A short explanation of why web searches are or are not needed for this prompt."
+      "What the final report should accomplish for the user. Be specific about the desired outcome."
+    ),
+  targetAudience: z
+    .string()
+    .describe(
+      "Who the report is for and the desired depth/tone, e.g. 'technical expert', 'beginner', 'executive summary'."
+    ),
+  outputFormat: z
+    .string()
+    .describe(
+      "The format the final report should take, e.g. 'markdown report with headings, bullets, and a short summary'."
     ),
   searches: z
     .array(
@@ -59,12 +69,36 @@ export const webSearchPlanSchema = z.object({
           .describe(
             "Why this query is needed and what information it should retrieve."
           ),
+        whatToExtract: z
+          .string()
+          .describe(
+            "What the downstream summarizer should extract from the search results for this query."
+          ),
+        priority: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .describe(
+            "Importance of this query for the final report (1 = low, 5 = critical)."
+          ),
       })
     )
     .min(0)
     .max(5)
     .describe(
       "List of web search queries to run (0-5). Only include queries that are likely to retrieve current or factual information not known to the model."
+    ),
+  reportInstructions: z
+    .string()
+    .describe(
+      "Detailed instructions for how the final report generator should synthesize the summaries into the output."
+    ),
+  sections: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Suggested section headings for the final report. The report generator may adapt these but should mostly follow them."
     ),
 });
 
@@ -75,16 +109,26 @@ export const WEB_SEARCH_PLAN_TOOL_NAME = "plan_web_searches";
 export const webSearchPlanToolDeclaration: FunctionDeclaration = {
   name: WEB_SEARCH_PLAN_TOOL_NAME,
   description:
-    "Plan which web searches are needed to answer the user's prompt accurately. " +
-    "For each search, provide a targeted query and a clear purpose so the results can be used " +
-    "to ground the final answer and avoid hallucination. Return an empty list if no searches are needed.",
+    "Plan how to answer the user's prompt using live web data. " +
+    "Output a clear processing plan: what to search, what to extract from each search, " +
+    "and how the final report should be assembled. Return an empty searches list if no web data is needed.",
   parameters: {
     type: Type.OBJECT,
     properties: {
-      reasoning: {
+      overallGoal: {
         type: Type.STRING,
         description:
-          "A short explanation of why web searches are or are not needed for this prompt.",
+          "What the final report should accomplish for the user. Be specific about the desired outcome.",
+      },
+      targetAudience: {
+        type: Type.STRING,
+        description:
+          "Who the report is for and the desired depth/tone, e.g. 'technical expert', 'beginner', 'executive summary'.",
+      },
+      outputFormat: {
+        type: Type.STRING,
+        description:
+          "The format the final report should take, e.g. 'markdown report with headings, bullets, and a short summary'.",
       },
       searches: {
         type: Type.ARRAY,
@@ -102,11 +146,42 @@ export const webSearchPlanToolDeclaration: FunctionDeclaration = {
               description:
                 "Why this query is needed and what information it should retrieve.",
             },
+            whatToExtract: {
+              type: Type.STRING,
+              description:
+                "What the downstream summarizer should extract from the search results for this query.",
+            },
+            priority: {
+              type: Type.INTEGER,
+              description:
+                "Importance of this query for the final report (1 = low, 5 = critical).",
+              minimum: 1,
+              maximum: 5,
+            },
           },
-          required: ["query", "purpose"],
+          required: ["query", "purpose", "whatToExtract", "priority"],
+        },
+      },
+      reportInstructions: {
+        type: Type.STRING,
+        description:
+          "Detailed instructions for how the final report generator should synthesize the summaries into the output.",
+      },
+      sections: {
+        type: Type.ARRAY,
+        description:
+          "Suggested section headings for the final report. The report generator may adapt these but should mostly follow them.",
+        items: {
+          type: Type.STRING,
         },
       },
     },
-    required: ["reasoning", "searches"],
+    required: [
+      "overallGoal",
+      "targetAudience",
+      "outputFormat",
+      "searches",
+      "reportInstructions",
+    ],
   },
 };

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL } from "@/lib/ai/config";
+import { genAI, GEMINI_MODEL, MAX_SEARCH_RESULTS_PER_QUERY } from "@/lib/ai/config";
 import { planWebSearches } from "@/lib/ai/planner";
 import { executeSearchPlan } from "@/lib/ai/executor";
+import { summarizeSearchResults } from "@/lib/ai/summarizer";
+import { generateReportStream } from "@/lib/ai/report-generator";
 
 export async function POST(req: NextRequest) {
   // User verification here
@@ -14,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // -------------------------------------------------------------------------
-    // 1. Planner: ask Gemini which searches are needed and why.
+    // 1. Planner: decide how to answer using live web data.
     // -------------------------------------------------------------------------
     let plan;
     try {
@@ -35,74 +37,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-console.log("===== PLAN =====");
-console.dir(plan, { depth: null });
-
     // -------------------------------------------------------------------------
     // 2. Execute all planned searches in parallel through Tavily.
     // -------------------------------------------------------------------------
     const executedSearches =
       plan.searches.length > 0
-        ? await executeSearchPlan(plan.searches, { maxResults: 2 })
+        ? await executeSearchPlan(plan.searches, {
+            maxResults: MAX_SEARCH_RESULTS_PER_QUERY,
+          })
         : [];
 
-console.log("===== EXECUTED SEARCHES =====");
-console.dir(executedSearches, { depth: 2 });
+    // -------------------------------------------------------------------------
+    // 3. Summarize each search query's results in parallel.
+    //    One LLM call per query keeps free-tier usage low.
+    // -------------------------------------------------------------------------
+    const summaries =
+      executedSearches.length > 0
+        ? await summarizeSearchResults(plan, executedSearches)
+        : [];
 
     // -------------------------------------------------------------------------
-    // 3. Build a grounded prompt for the final answer.
+    // 4. Stream the final report back to the client.
     //    If no searches were planned, answer directly from the user's prompt.
     //    TODO: add fallback behavior here if desired (e.g. run a single broad
     //    search when the planner returns no queries).
     // -------------------------------------------------------------------------
-    let finalPrompt = userText;
-
-    if (executedSearches.length > 0) {
-      const searchContext = executedSearches
-        .map((search, index) => {
-          const header = `[Search ${index + 1}]\nQuery: ${search.query}\nPurpose: ${search.purpose}`;
-
-          if (search.error) {
-            return `${header}\nError: ${search.error}`;
-          }
-
-          const results = search.results
-            .map(
-              (result, rIndex) =>
-                `  [Result ${rIndex + 1}]\n  Title: ${result.title}\n  URL: ${result.url}\n  Content: ${result.content}`
-            )
-            .join("\n");
-
-          return `${header}\nResults:\n${results || "  No results found."}`;
-        })
-        .join("\n\n");
-
-      finalPrompt = [
-        "Use the following web search results to answer the user's question accurately.",
-        "Base your answer only on the provided results. If the results do not contain enough information, say so.",
-        "",
-        "=== User Question ===",
-        userText,
-        "",
-        "=== Web Search Results ===",
-        searchContext,
-      ].join("\n");
-    }
-
-    // -------------------------------------------------------------------------
-    // 4. Stream the final answer back to the client in the same format as before.
-    // -------------------------------------------------------------------------
-    const chat = genAI.chats.create({
-      model: GEMINI_MODEL,
-    });
-
-    // Fetch the initial stream response before creating the ReadableStream
-    // so we can catch quota/rate-limit errors early and return a proper HTTP status.
     let responseStream;
     try {
-      responseStream = await chat.sendMessageStream({ message: finalPrompt });
+      if (summaries.length > 0) {
+        responseStream = await generateReportStream(userText, plan, summaries);
+      } else {
+        const chat = genAI.chats.create({ model: GEMINI_MODEL });
+        responseStream = await chat.sendMessageStream({ message: userText });
+      }
     } catch (err: any) {
-      console.error("Final answer stream call failed:", err);
+      console.error("Final report stream call failed:", err);
       const isRateLimit =
         err.status === 429 ||
         err.message?.includes("Quota exceeded") ||
@@ -116,8 +85,6 @@ console.dir(executedSearches, { depth: 2 });
         { status: isRateLimit ? 429 : 502 }
       );
     }
-
-console.log("Prompt length:", finalPrompt.length);
 
     const stream = new ReadableStream({
       async start(controller) {

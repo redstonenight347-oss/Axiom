@@ -53,7 +53,8 @@ async function summarizeOneSearch(
     .join("\n\n");
 
   const prompt = [
-    "You are a research assistant. Read the search results below and produce a concise summary.",
+    "You are a research assistant. Read the search results below and produce a concise, query-focused summary.",
+    "Focus tightly on the user's core question. Ignore tangential or background information unless it is directly needed to answer.",
     "",
     "=== Search Query ===",
     search.query,
@@ -70,7 +71,9 @@ async function summarizeOneSearch(
     "=== Output Instructions ===",
     `Write a clear, focused summary in at most ${MAX_SUMMARY_CHARS} characters.`,
     "Then list 3-7 key facts or important details as bullet points.",
+    "Each fact must directly help answer the user's question.",
     "Do not include information that is not supported by the results.",
+    "Do not add background context that is not relevant to the query.",
   ].join("\n");
 
   try {
@@ -79,7 +82,7 @@ async function summarizeOneSearch(
       contents: prompt,
       config: {
         systemInstruction:
-          "Return only the summary followed by a 'Key Facts:' section. Be concise and factual.",
+          "Return only the summary followed by a 'Key Facts:' section. Be concise, factual, and tightly focused on the query. Avoid tangents.",
       },
     });
 

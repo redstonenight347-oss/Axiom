@@ -15,7 +15,8 @@ export interface ExecutedSearch {
 
 /**
  * Runs each planned search query independently through Tavily in parallel.
- * Individual failures are captured in the `error` field so the rest can continue.
+ * Uses retry + timeout per query. Individual failures are captured in the
+ * `error` field so the rest can continue.
  */
 export async function executeSearchPlan(
   plan: SearchPlanItem[],
@@ -25,7 +26,7 @@ export async function executeSearchPlan(
 
   const executions = plan.map(async (item) => {
     try {
-      const results = await searchProvider.search(item.query, {
+      const results = await searchProvider.searchWithRetry(item.query, {
         maxResults: options.maxResults,
       });
       return {
@@ -34,6 +35,7 @@ export async function executeSearchPlan(
         results,
       };
     } catch (error: any) {
+      console.error(`[Executor] All retries failed for query "${item.query}": ${error.message}`);
       return {
         query: item.query,
         purpose: item.purpose,
@@ -44,4 +46,11 @@ export async function executeSearchPlan(
   });
 
   return Promise.all(executions);
+}
+
+/**
+ * Returns true if every executed search has an error and no results were returned.
+ */
+export function allSearchesFailed(searches: ExecutedSearch[]): boolean {
+  return searches.length > 0 && searches.every((search) => search.error || search.results.length === 0);
 }

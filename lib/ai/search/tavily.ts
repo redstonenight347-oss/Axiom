@@ -25,7 +25,7 @@ export class TavilySearchProvider implements SearchProvider {
     query: string,
     options: { maxResults?: number } = {}
   ): Promise<SearchResult[]> {
-    const maxResults = Math.min(Math.max(options.maxResults ?? 5, 1), 10);
+    const maxResults = Math.min(Math.max(options.maxResults ?? 2, 1), 10);
 
     const response = await fetch(this.baseUrl, {
       method: "POST",

@@ -39,6 +39,11 @@ export const TAVILY_TIMEOUT_MS = 15000;
 export const TAVILY_MAX_RETRIES = 3;
 export const TAVILY_RETRY_BASE_DELAY_MS = 500;
 
+// Conversation history settings.
+// Number of recent messages to send to the model as context.
+// Set to 0 to disable history (only the current user message is sent).
+export const MAX_HISTORY_MESSAGES = 10;
+
 // Backwards-compatible default model alias.
 export const GEMINI_MODEL = GEMINI_MODELS[0];
 

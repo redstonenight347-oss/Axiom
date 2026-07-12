@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       const clarificationStream = new ReadableStream({
         start(controller) {
           controller.enqueue(
-            new TextEncoder().encode(plan.askForClarification + "\n")
+            new TextEncoder().encode(plan.askForClarification)
           );
           controller.close();
         },
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
 
       const directStream = new ReadableStream({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(answer + "\n"));
+          controller.enqueue(new TextEncoder().encode(answer));
           controller.close();
         },
       });
@@ -321,7 +321,7 @@ export async function POST(req: NextRequest) {
         try {
           for await (const chunk of responseStream) {
             if (chunk.text) {
-              controller.enqueue(new TextEncoder().encode(chunk.text + "\n"));
+              controller.enqueue(new TextEncoder().encode(chunk.text));
               fullContent += chunk.text;
             }
           }

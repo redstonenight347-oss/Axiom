@@ -65,3 +65,40 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* Markdown body base */
+.markdown-body {
+  line-height: 1.6;
+}
+
+.markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Highlight.js overrides for dark glassmorphism theme */
+.markdown-body .hljs {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  background: transparent;
+  padding: 0;
+}
+
+/* Global typography polish */
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}

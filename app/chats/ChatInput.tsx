@@ -33,7 +33,7 @@ export function ChatInput({
           onKeyDown={onKeyDown}
           placeholder="Message Axiom…"
           rows={1}
-          className="flex-1 resize-none bg-transparent text-[14px] text-white/90 placeholder:text-white/25 px-3 py-2.5 outline-none max-h-40 custom-scrollbar leading-relaxed"
+          className="flex-1 resize-none bg-transparent text-base text-white/90 placeholder:text-white/25 px-3 py-2.5 outline-none max-h-40 custom-scrollbar leading-relaxed"
         />
 
         <button
@@ -57,7 +57,7 @@ export function ChatInput({
         </button>
       </form>
 
-      <p className="text-center text-[11px] text-white/20 mt-3">
+      <p className="text-center text-xs text-white/20 mt-3 tracking-wide">
         Axiom can make mistakes. Verify important information.
       </p>
     </footer>

@@ -172,33 +172,32 @@ export function useChat({ initialChatId }: UseChatOptions = {}) {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+        let streamedContent = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+          const chunk = decoder.decode(value, { stream: true });
+          streamedContent += chunk;
 
-          for (const line of lines) {
-            if (!line) continue;
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantId
-                  ? { ...msg, content: msg.content + line }
-                  : msg
-              )
-            );
-          }
-        }
-
-        if (buffer) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
-                ? { ...msg, content: msg.content + buffer }
+                ? { ...msg, content: streamedContent }
+                : msg
+            )
+          );
+        }
+
+        // Flush any remaining bytes in the decoder.
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          streamedContent += finalChunk;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? { ...msg, content: streamedContent }
                 : msg
             )
           );

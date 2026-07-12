@@ -31,11 +31,11 @@ export function ChatSidebar({
   const router = useRouter();
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r border-white/8 bg-[#0a0a0f]/95 backdrop-blur-xl flex flex-col h-full">
+    <aside className="w-64 shrink-0 border-r border-white/8 bg-[#0a0a0f]/95 backdrop-blur-xl flex flex-col h-full">
       <div className="p-4 border-b border-white/8">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white py-2.5 px-4 text-sm font-medium shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white py-2.5 px-4 text-base font-medium shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -64,7 +64,7 @@ export function ChatSidebar({
             ))}
           </div>
         ) : chats.length === 0 ? (
-          <p className="text-sm text-white/30 text-center py-8">
+          <p className="text-base text-white/30 text-center py-8 leading-relaxed">
             No chats yet. Start a new conversation.
           </p>
         ) : (
@@ -83,13 +83,13 @@ export function ChatSidebar({
                   >
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`text-sm truncate ${
+                        className={`text-base truncate ${
                           isActive ? "text-white" : "text-white/70"
                         }`}
                       >
                         {item.title}
                       </p>
-                      <p className="text-[11px] text-white/30 mt-0.5">
+                      <p className="text-xs text-white/30 mt-0.5 tracking-wide">
                         {formatDate(item.updatedAt)}
                       </p>
                     </div>

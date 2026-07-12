@@ -19,8 +19,8 @@ export function ChatHeader() {
         <AxiomIcon className="h-5 w-5 text-white" />
       </div>
       <div>
-        <h1 className="text-[15px] font-semibold tracking-tight">Axiom</h1>
-        <p className="text-[11px] text-white/40 leading-none mt-0.5">
+        <h1 className="text-base font-semibold tracking-tight">Axiom</h1>
+        <p className="text-xs text-white/40 leading-none mt-0.5 tracking-wide">
           Advanced AI&ensp;·&ensp;Online
         </p>
       </div>
@@ -30,7 +30,7 @@ export function ChatHeader() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
-          <span className="text-[11px] text-emerald-400/80 font-medium">
+          <span className="text-xs text-emerald-400/80 font-medium tracking-wide">
             Ready
           </span>
         </div>

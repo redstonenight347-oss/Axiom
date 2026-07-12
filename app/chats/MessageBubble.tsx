@@ -1,4 +1,5 @@
 import { AxiomIcon } from "./AxiomIcon";
+import { Markdown } from "./Markdown";
 import type { Message } from "./types";
 
 interface MessageBubbleProps {
@@ -30,7 +31,7 @@ export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps)
 
       {/* Bubble */}
       <div
-        className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
+        className={`relative max-w-[80%] px-5 py-4 rounded-2xl text-base leading-relaxed ${
           isUser
             ? "bg-linear-to-br from-purple-600/80 to-indigo-600/80 text-white rounded-br-md shadow-lg shadow-purple-500/10"
             : `bg-white/5 text-white/85 border rounded-bl-md backdrop-blur-sm ${message.error ? "border-red-400/40" : "border-white/6"}`
@@ -42,6 +43,8 @@ export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps)
             <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
             <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
           </div>
+        ) : isAssistant ? (
+          <Markdown content={message.content} />
         ) : (
           <p className="whitespace-pre-wrap">{message.content}</p>
         )}
@@ -52,7 +55,7 @@ export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps)
         )}
         {!hideTimestamp && (
           <span
-            className={`block text-[10px] mt-2 ${
+            className={`block text-xs mt-2 tracking-wide ${
               isUser ? "text-white/40 text-right" : "text-white/25"
             }`}
           >

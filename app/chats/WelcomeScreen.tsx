@@ -1,11 +1,12 @@
+"use client";
+
 import { AxiomIcon } from "./AxiomIcon";
 import { WELCOME_SUGGESTIONS } from "./types";
+import { useChatStore } from "./chatStore";
 
-interface WelcomeScreenProps {
-  onSuggestionClick: (text: string) => void;
-}
+export function WelcomeScreen() {
+  const handleSuggestionClick = useChatStore((state) => state.handleSuggestionClick);
 
-export function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 py-16 sm:py-24 animate-fade-in">
       {/* Logo orb */}
@@ -28,7 +29,7 @@ export function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps) {
         {WELCOME_SUGGESTIONS.map((s) => (
           <button
             key={s}
-            onClick={() => onSuggestionClick(s)}
+            onClick={() => handleSuggestionClick(s)}
             className="group relative px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-sm sm:text-base text-white/60 border border-white/[0.07] bg-white/3 backdrop-blur-sm hover:border-purple-400/30 hover:text-white/90 hover:bg-white/6 transition-all duration-300 cursor-pointer"
           >
             <span className="absolute inset-0 rounded-2xl bg-linear-to-r from-purple-500/0 to-cyan-400/0 group-hover:from-purple-500/5 group-hover:to-cyan-400/5 transition-all duration-300" />

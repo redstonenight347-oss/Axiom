@@ -1,36 +1,29 @@
-import type { RefObject, SubmitEvent, KeyboardEvent } from "react";
+"use client";
 
-interface ChatInputProps {
-  input: string;
-  isTyping: boolean;
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
-  onInputChange: (value: string) => void;
-  onSubmit: (e: SubmitEvent) => void;
-  onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
-}
+import { useChatStore } from "./chatStore";
 
-export function ChatInput({
-  input,
-  isTyping,
-  textareaRef,
-  onInputChange,
-  onSubmit,
-  onKeyDown,
-}: ChatInputProps) {
+export function ChatInput() {
+  const input = useChatStore((state) => state.input);
+  const isTyping = useChatStore((state) => state.isTyping);
+  const textareaRef = useChatStore((state) => state.textareaRef);
+  const setInput = useChatStore((state) => state.setInput);
+  const handleSubmit = useChatStore((state) => state.handleSubmit);
+  const handleKeyDown = useChatStore((state) => state.handleKeyDown);
+
   return (
     <footer className="relative z-10 px-3 sm:px-4 pb-4 sm:pb-5 pt-3">
       {/* Top fade */}
       <div className="pointer-events-none absolute -top-12 left-0 right-0 h-12 bg-linear-to-t from-[#0a0a0f] to-transparent" />
 
       <form
-        onSubmit={onSubmit}
+        onSubmit={handleSubmit}
         className="mx-auto max-w-2xl relative flex items-end gap-2 rounded-2xl border border-white/8 bg-white/4 backdrop-blur-xl p-2 shadow-2xl shadow-black/40 transition-all duration-300 focus-within:border-purple-500/30 focus-within:shadow-purple-500/5"
       >
         <textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={onKeyDown}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Message Axiom…"
           rows={1}
           className="flex-1 resize-none bg-transparent text-base sm:text-lg text-white/90 placeholder:text-white/25 px-3 py-2.5 outline-none max-h-40 custom-scrollbar leading-relaxed"

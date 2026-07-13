@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useChat } from "./useChat";
+import { useEffect } from "react";
+import { useChatStore } from "./chatStore";
 import { AmbientBackground } from "./AmbientBackground";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
@@ -13,29 +13,43 @@ interface ChatClientProps {
 }
 
 export function ChatClient({ initialChatId }: ChatClientProps) {
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const setInitialChatId = useChatStore((state) => state.setInitialChatId);
+  const loadChats = useChatStore((state) => state.loadChats);
+  const loadChat = useChatStore((state) => state.loadChat);
+  const isMobileSidebarOpen = useChatStore((state) => state.isMobileSidebarOpen);
+  const setIsMobileSidebarOpen = useChatStore((state) => state.setIsMobileSidebarOpen);
+  const chatId = useChatStore((state) => state.chatId);
 
-  const {
-    messages,
-    input,
-    setInput,
-    isTyping,
-    chatId,
-    chats,
-    isLoadingChats,
-    messagesEndRef,
-    textareaRef,
-    handleSubmit,
-    handleKeyDown,
-    handleSuggestionClick,
-    startNewChat,
-    deleteChat,
-  } = useChat({ initialChatId });
+  /* Sync store with URL-driven initialChatId */
+  useEffect(() => {
+    setInitialChatId(initialChatId);
+  }, [initialChatId, setInitialChatId]);
 
-  const handleNewChat = () => {
-    setIsMobileSidebarOpen(false);
-    startNewChat();
-  };
+  /* Load chat list once on mount */
+  useEffect(() => {
+    let cancelled = false;
+    loadChats().then(() => {
+      if (cancelled) return;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadChats]);
+
+  /* Load existing chat messages when chatId changes */
+  useEffect(() => {
+    if (!chatId) {
+      return;
+    }
+
+    let cancelled = false;
+    loadChat(chatId).then(() => {
+      if (cancelled) return;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, loadChat]);
 
   return (
     <div className="flex h-screen bg-[#0a0a0f] text-white overflow-hidden">
@@ -43,13 +57,7 @@ export function ChatClient({ initialChatId }: ChatClientProps) {
 
       {/* Desktop sidebar */}
       <div className="hidden md:block shrink-0">
-        <ChatSidebar
-          chats={chats}
-          activeChatId={chatId}
-          isLoading={isLoadingChats}
-          onNewChat={startNewChat}
-          onDeleteChat={deleteChat}
-        />
+        <ChatSidebar />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -60,33 +68,15 @@ export function ChatClient({ initialChatId }: ChatClientProps) {
             onClick={() => setIsMobileSidebarOpen(false)}
           />
           <div className="fixed inset-y-0 left-0 z-50 md:hidden">
-            <ChatSidebar
-              chats={chats}
-              activeChatId={chatId}
-              isLoading={isLoadingChats}
-              onNewChat={handleNewChat}
-              onDeleteChat={deleteChat}
-            />
+            <ChatSidebar />
           </div>
         </>
       )}
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <ChatHeader onMenuClick={() => setIsMobileSidebarOpen(true)} />
-        <MessageList
-          messages={messages}
-          isTyping={isTyping}
-          messagesEndRef={messagesEndRef}
-          onSuggestionClick={handleSuggestionClick}
-        />
-        <ChatInput
-          input={input}
-          isTyping={isTyping}
-          textareaRef={textareaRef}
-          onInputChange={setInput}
-          onSubmit={handleSubmit}
-          onKeyDown={handleKeyDown}
-        />
+        <ChatHeader />
+        <MessageList />
+        <ChatInput />
       </div>
     </div>
   );

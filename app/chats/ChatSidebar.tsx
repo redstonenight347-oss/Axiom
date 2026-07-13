@@ -1,40 +1,26 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-
-interface ChatListItem {
-  id: string;
-  title: string;
-  updatedAt: string;
-}
-
-interface ChatSidebarProps {
-  chats: ChatListItem[];
-  activeChatId: string | null;
-  isLoading: boolean;
-  onNewChat: () => void;
-  onDeleteChat: (id: string) => void;
-}
+import { useChatStore } from "./chatStore";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function ChatSidebar({
-  chats,
-  activeChatId,
-  isLoading,
-  onNewChat,
-  onDeleteChat,
-}: ChatSidebarProps) {
+export function ChatSidebar() {
   const router = useRouter();
+  const chats = useChatStore((state) => state.chats);
+  const activeChatId = useChatStore((state) => state.chatId);
+  const isLoading = useChatStore((state) => state.isLoadingChats);
+  const startNewChat = useChatStore((state) => state.startNewChat);
+  const deleteChat = useChatStore((state) => state.deleteChat);
 
   return (
     <aside className="w-64 shrink-0 border-r border-white/8 bg-[#0a0a0f]/95 backdrop-blur-xl flex flex-col h-full">
       <div className="p-4 border-b border-white/8">
         <button
-          onClick={onNewChat}
+          onClick={startNewChat}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white py-2.5 px-4 text-base font-medium shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
         >
           <svg
@@ -96,7 +82,7 @@ export function ChatSidebar({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteChat(item.id);
+                        deleteChat(item.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-white/5 transition-all duration-200"
                       aria-label="Delete chat"

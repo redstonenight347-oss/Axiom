@@ -1,8 +1,8 @@
 "use client";
 
-import { AxiomIcon } from "./AxiomIcon";
-import { WELCOME_SUGGESTIONS } from "./types";
-import { useChatStore } from "./chatStore";
+import { AxiomIcon } from "@/components/ui/AxiomIcon";
+import { WELCOME_SUGGESTIONS } from "@/app/chats/types";
+import { useChatStore } from "@/store/chatStore";
 
 export function WelcomeScreen() {
   const handleSuggestionClick = useChatStore((state) => state.handleSuggestionClick);

@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { MessageBubble } from "./MessageBubble";
-import { WelcomeScreen } from "./WelcomeScreen";
-import { useChatStore } from "./chatStore";
+import { WelcomeScreen } from "@/components/ui/WelcomeScreen";
+import { useChatStore } from "@/store/chatStore";
 
 export function MessageList() {
   const messages = useChatStore((state) => state.messages);

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import type { RefObject } from "react";
-import type { Message } from "./types";
+import type { Message } from "@/app/chats/types";
 
 export interface ChatListItem {
   id: string;

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { useChatStore } from "./chatStore";
-import { AmbientBackground } from "./AmbientBackground";
-import { ChatHeader } from "./ChatHeader";
+import { useChatStore } from "@/store/chatStore";
+import { AmbientBackground } from "@/components/ui/AmbientBackground";
+import { ChatHeader } from "@/components/ui/ChatHeader";
 import { MessageList } from "./MessageList";
-import { ChatInput } from "./ChatInput";
-import { ChatSidebar } from "./ChatSidebar";
+import { ChatInput } from "@/components/ui/ChatInput";
+import { ChatSidebar } from "@/components/ChatSidebar";
 
 interface ChatClientProps {
   initialChatId?: string | null;

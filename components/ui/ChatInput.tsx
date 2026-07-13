@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatStore } from "./chatStore";
+import { useChatStore } from "@/store/chatStore";
 
 export function ChatInput() {
   const input = useChatStore((state) => state.input);
@@ -21,7 +21,7 @@ export function ChatInput() {
       >
         <textarea
           ref={textareaRef}
-          value={input}
+          // value={}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Message Axiom…"

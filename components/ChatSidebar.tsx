@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useChatStore } from "./chatStore";
+import { useChatStore } from "@/store/chatStore";
 
 function formatDate(iso: string) {
   const d = new Date(iso);

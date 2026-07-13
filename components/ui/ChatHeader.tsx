@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AxiomIcon } from "./AxiomIcon";
 import { authClient } from "@/lib/auth/client";
-import { useChatStore } from "./chatStore";
+import { useChatStore } from "@/store/chatStore";
 
 export function ChatHeader() {
   const router = useRouter();

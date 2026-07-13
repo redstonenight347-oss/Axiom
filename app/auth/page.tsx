@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AxiomIcon } from "@/app/chats/AxiomIcon";
-import { AmbientBackground } from "@/app/chats/AmbientBackground";
+import { AxiomIcon } from "@/components/ui/AxiomIcon";
+import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { authClient } from "@/lib/auth/client";
 
 type Mode = "signin" | "signup";

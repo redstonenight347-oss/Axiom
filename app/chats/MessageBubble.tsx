@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { AxiomIcon } from "./AxiomIcon";
+import { AxiomIcon } from "@/components/ui/AxiomIcon";
 import { Markdown } from "./Markdown";
 import type { Message } from "./types";
 

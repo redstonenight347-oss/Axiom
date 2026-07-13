@@ -53,6 +53,14 @@ function buildPromptWithHistory(userText: string, history: Message[]): string {
   ].join("\n");
 }
 
+function sseStatus(status: string) {
+  return new TextEncoder().encode(`event: status\ndata: ${status}\n\n`);
+}
+
+function sseContent(text: string) {
+  return new TextEncoder().encode(`event: content\ndata: ${JSON.stringify(text)}\n\n`);
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session?.user?.id) {
@@ -162,15 +170,14 @@ export async function POST(req: NextRequest) {
 
       const clarificationStream = new ReadableStream({
         start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode(plan.askForClarification)
-          );
+          controller.enqueue(sseStatus("Thinking..."));
+          controller.enqueue(sseContent(plan.askForClarification ?? ""));
           controller.close();
         },
       });
       return new Response(clarificationStream, {
         headers: {
-          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Type": "text/event-stream; charset=utf-8",
           "X-Chat-Id": activeChatId,
         },
       });
@@ -191,13 +198,14 @@ export async function POST(req: NextRequest) {
 
       const directStream = new ReadableStream({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(answer));
+          controller.enqueue(sseStatus("Generating Report..."));
+          controller.enqueue(sseContent(answer));
           controller.close();
         },
       });
       return new Response(directStream, {
         headers: {
-          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Type": "text/event-stream; charset=utf-8",
           "X-Chat-Id": activeChatId,
         },
       });
@@ -218,6 +226,10 @@ export async function POST(req: NextRequest) {
         executedSearches.filter((s) => s.error).length
       }`
     );
+
+    // -------------------------------------------------------------------------
+    // 5. Summarize search results if needed.
+    // -------------------------------------------------------------------------
 
     if (allSearchesFailed(executedSearches)) {
       const failureDetails = executedSearches
@@ -317,11 +329,13 @@ export async function POST(req: NextRequest) {
 
     const stream = new ReadableStream({
       async start(controller) {
+        controller.enqueue(sseStatus("Generating report..."));
+
         let fullContent = "";
         try {
           for await (const chunk of responseStream) {
             if (chunk.text) {
-              controller.enqueue(new TextEncoder().encode(chunk.text));
+              controller.enqueue(sseContent(chunk.text));
               fullContent += chunk.text;
             }
           }
@@ -351,7 +365,7 @@ export async function POST(req: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "text/event-stream; charset=utf-8",
         "X-Chat-Id": activeChatId,
       },
     });

@@ -8,6 +8,7 @@ import { useChatStore } from "./chatStore";
 export function MessageList() {
   const messages = useChatStore((state) => state.messages);
   const isTyping = useChatStore((state) => state.isTyping);
+  const status = useChatStore((state) => state.status);
   const messagesEndRef = useChatStore((state) => state.messagesEndRef);
 
   const isEmpty = messages.length === 0;
@@ -34,6 +35,7 @@ export function MessageList() {
               message={msg}
               isTyping={isTyping}
               isLast={i === messages.length - 1}
+              status={i === messages.length - 1 ? status : null}
             />
           </div>
         ))}

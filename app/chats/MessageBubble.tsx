@@ -9,6 +9,7 @@ interface MessageBubbleProps {
   message: Message;
   isTyping: boolean;
   isLast: boolean;
+  status?: string | null;
 }
 
 function formatTime(d: Date) {
@@ -76,13 +77,14 @@ function CopyMessageButton({ text }: { text: string }) {
   );
 }
 
-export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps) {
+export function MessageBubble({ message, isTyping, isLast, status }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const showTypingDots = isAssistant && !message.content && isTyping;
   const hideTimestamp = isAssistant && isTyping && isLast;
   const showPulseCursor = isAssistant && isTyping && isLast && !!message.content;
   const isFinishedAssistant = isAssistant && !isTyping && !showTypingDots && !!message.content;
+  const showStatus = isAssistant && isTyping && isLast && status;
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -104,10 +106,15 @@ export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps)
         }`}
       >
         {showTypingDots ? (
-          <div className="flex gap-1.5 py-1">
-            <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:0ms]" />
-            <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
-            <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1.5 py-1">
+              <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:0ms]" />
+              <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:150ms]" />
+              <span className="h-2 w-2 rounded-full bg-purple-400/60 animate-bounce [animation-delay:300ms]" />
+            </div>
+            {showStatus && (
+              <span className="text-xs text-white/40 italic">{status}</span>
+            )}
           </div>
         ) : isAssistant ? (
           <Markdown content={message.content} />
@@ -117,6 +124,10 @@ export function MessageBubble({ message, isTyping, isLast }: MessageBubbleProps)
 
         {showPulseCursor && (
           <span className="inline-block w-2 h-4 sm:h-5 ml-0.5 align-middle bg-purple-300/80 rounded-sm animate-pulse-cursor" />
+        )}
+
+        {showStatus && !showTypingDots && (
+          <span className="block text-xs text-white/40 italic mt-1">{status}</span>
         )}
 
         {message.error && (

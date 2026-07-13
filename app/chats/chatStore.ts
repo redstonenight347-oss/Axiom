@@ -15,6 +15,7 @@ interface ChatState {
   messages: Message[];
   input: string;
   isTyping: boolean;
+  status: string | null;
   chatId: string | null;
   initialChatId: string | null;
 
@@ -33,6 +34,7 @@ interface ChatState {
   setInitialChatId: (id: string | null | undefined) => void;
   setIsMobileSidebarOpen: (open: boolean) => void;
   toggleMobileSidebar: () => void;
+  setStatus: (status: string | null) => void;
 
   loadChats: () => Promise<void>;
   loadChat: (id: string) => Promise<void>;
@@ -56,6 +58,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   input: "",
   isTyping: false,
+  status: null,
   chatId: null,
   initialChatId: null,
   chats: [],
@@ -84,6 +87,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setIsMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
   toggleMobileSidebar: () => set((state) => ({ isMobileSidebarOpen: !state.isMobileSidebarOpen })),
+  setStatus: (status) => set({ status }),
 
   loadChats: async () => {
     set({ isLoadingChats: true });
@@ -137,6 +141,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...prev.messages, userMsg],
       input: "",
       isTyping: true,
+      status: "Thinking...",
     }));
 
     const ta = state.textareaRef.current;
@@ -184,6 +189,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 : msg
             ),
             isTyping: false,
+            status: null,
           }));
           return;
         }
@@ -196,6 +202,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 : msg
             ),
             isTyping: false,
+            status: null,
           }));
           return;
         }
@@ -203,32 +210,114 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let streamedContent = "";
+        let buffer = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          streamedContent += chunk;
+          buffer += decoder.decode(value, { stream: true });
 
-          set((prev) => ({
-            messages: prev.messages.map((msg) =>
-              msg.id === assistantId ? { ...msg, content: streamedContent } : msg
-            ),
-          }));
+          // Parse complete SSE messages (double-newline terminated).
+          while (true) {
+            const separatorIndex = buffer.indexOf("\n\n");
+            if (separatorIndex === -1) break;
+
+            const rawMessage = buffer.slice(0, separatorIndex);
+            buffer = buffer.slice(separatorIndex + 2);
+
+            const lines = rawMessage.split("\n");
+            let eventType: string | null = null;
+            let dataValue: string | null = null;
+
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                eventType = line.slice(6).trim();
+              } else if (line.startsWith("data:")) {
+                dataValue = line.slice(5).trim();
+              }
+            }
+
+            if (eventType === "status" && dataValue) {
+              set({ status: dataValue });
+            } else if (eventType === "content" && dataValue) {
+              try {
+                const parsed = JSON.parse(dataValue);
+                if (typeof parsed === "string") {
+                  streamedContent += parsed;
+                }
+              } catch {
+                // Plain-text fallback: treat non-JSON data as raw content.
+                streamedContent += dataValue;
+              }
+              set((prev) => ({
+                messages: prev.messages.map((msg) =>
+                  msg.id === assistantId ? { ...msg, content: streamedContent } : msg
+                ),
+              }));
+            } else if (dataValue) {
+              // Unknown event or no event line: treat as plain content fallback.
+              streamedContent += dataValue;
+              set((prev) => ({
+                messages: prev.messages.map((msg) =>
+                  msg.id === assistantId ? { ...msg, content: streamedContent } : msg
+                ),
+              }));
+            }
+          }
         }
 
         const finalChunk = decoder.decode();
         if (finalChunk) {
-          streamedContent += finalChunk;
-          set((prev) => ({
-            messages: prev.messages.map((msg) =>
-              msg.id === assistantId ? { ...msg, content: streamedContent } : msg
-            ),
-          }));
+          // Process any remaining buffered SSE data on stream end.
+          buffer += finalChunk;
+          while (true) {
+            const separatorIndex = buffer.indexOf("\n\n");
+            if (separatorIndex === -1) break;
+
+            const rawMessage = buffer.slice(0, separatorIndex);
+            buffer = buffer.slice(separatorIndex + 2);
+
+            const lines = rawMessage.split("\n");
+            let eventType: string | null = null;
+            let dataValue: string | null = null;
+
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                eventType = line.slice(6).trim();
+              } else if (line.startsWith("data:")) {
+                dataValue = line.slice(5).trim();
+              }
+            }
+
+            if (eventType === "status" && dataValue) {
+              set({ status: dataValue });
+            } else if (eventType === "content" && dataValue) {
+              try {
+                const parsed = JSON.parse(dataValue);
+                if (typeof parsed === "string") {
+                  streamedContent += parsed;
+                }
+              } catch {
+                streamedContent += dataValue;
+              }
+              set((prev) => ({
+                messages: prev.messages.map((msg) =>
+                  msg.id === assistantId ? { ...msg, content: streamedContent } : msg
+                ),
+              }));
+            } else if (dataValue) {
+              streamedContent += dataValue;
+              set((prev) => ({
+                messages: prev.messages.map((msg) =>
+                  msg.id === assistantId ? { ...msg, content: streamedContent } : msg
+                ),
+              }));
+            }
+          }
         }
 
-        set({ isTyping: false });
+        set({ isTyping: false, status: null });
       } catch (err) {
         console.log(err);
         set((prev) => ({
@@ -236,6 +325,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             msg.id === assistantId ? { ...msg, error: true } : msg
           ),
           isTyping: false,
+          status: null,
         }));
       }
     })();
@@ -249,7 +339,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   startNewChat: () => {
-    set({ chatId: null, messages: [], input: "", isMobileSidebarOpen: false });
+    set({ chatId: null, messages: [], input: "", status: null, isMobileSidebarOpen: false });
     const ta = get().textareaRef.current;
     if (ta) {
       ta.style.height = "auto";

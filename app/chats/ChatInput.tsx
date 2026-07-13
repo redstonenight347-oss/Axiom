@@ -18,7 +18,7 @@ export function ChatInput({
   onKeyDown,
 }: ChatInputProps) {
   return (
-    <footer className="relative z-10 px-4 pb-5 pt-3">
+    <footer className="relative z-10 px-3 sm:px-4 pb-4 sm:pb-5 pt-3">
       {/* Top fade */}
       <div className="pointer-events-none absolute -top-12 left-0 right-0 h-12 bg-linear-to-t from-[#0a0a0f] to-transparent" />
 
@@ -33,13 +33,13 @@ export function ChatInput({
           onKeyDown={onKeyDown}
           placeholder="Message Axiom…"
           rows={1}
-          className="flex-1 resize-none bg-transparent text-base text-white/90 placeholder:text-white/25 px-3 py-2.5 outline-none max-h-40 custom-scrollbar leading-relaxed"
+          className="flex-1 resize-none bg-transparent text-base sm:text-lg text-white/90 placeholder:text-white/25 px-3 py-2.5 outline-none max-h-40 custom-scrollbar leading-relaxed"
         />
 
         <button
           type="submit"
           disabled={!input.trim() || isTyping}
-          className="shrink-0 flex items-center justify-center h-10 w-10 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/25 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed hover:shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+          className="shrink-0 flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/25 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed hover:shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -57,7 +57,7 @@ export function ChatInput({
         </button>
       </form>
 
-      <p className="text-center text-xs text-white/20 mt-3 tracking-wide">
+      <p className="text-center text-[11px] sm:text-xs text-white/20 mt-2 sm:mt-3 tracking-wide">
         Axiom can make mistakes. Verify important information.
       </p>
     </footer>

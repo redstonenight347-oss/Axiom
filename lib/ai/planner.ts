@@ -53,7 +53,7 @@ export async function planWebSearches(
     askForClarification: args.askForClarification,
     overallGoal: args.overallGoal ?? "Answer the user's question accurately.",
     targetAudience: args.targetAudience ?? "general audience",
-    outputFormat: args.outputFormat ?? "markdown report",
+    outputFormat: args.outputFormat ?? "raw markdown report that renders directly in a chat UI",
     searches: clampedSearches,
     needsSummarization: args.needsSummarization ?? false,
     reportInstructions:

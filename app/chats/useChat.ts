@@ -180,7 +180,7 @@ export function useChat({ initialChatId }: UseChatOptions = {}) {
 
           const chunk = decoder.decode(value, { stream: true });
           streamedContent += chunk;
-
+console.log(streamedContent)
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId

@@ -69,6 +69,14 @@
 /* Markdown body base */
 .markdown-body {
   line-height: 1.6;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body pre,
+.markdown-body code {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .markdown-body > *:first-child {
@@ -101,4 +109,20 @@ html {
 
 body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Soft typing cursor for streaming assistant messages */
+@keyframes pulse-cursor {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse-cursor {
+  animation: pulse-cursor 1s ease-in-out infinite;
 }

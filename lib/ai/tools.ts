@@ -82,7 +82,13 @@ export const webSearchPlanSchema = z.object({
     .string()
     .optional()
     .describe(
-      "The format the final report should take, e.g. 'markdown report with headings, bullets, and a short summary'."
+      "The format the final report should take. The chat application renders responses with react-markdown. " +
+      "Return the final response as raw Markdown. Do NOT wrap the entire response inside a fenced code block such as ```markdown ... ``` or ``` ... ```. " +
+      "The response itself must be valid Markdown that renders immediately. " +
+      "Use headings, paragraphs, lists, tables, links, blockquotes, bold, italics, and inline code normally. " +
+      "Use fenced code blocks ONLY for actual code examples that are part of the content. " +
+      "If the user explicitly asks for a .md file, the Markdown source, a copyable Markdown version, or 'give me this in markdown', do not replace the rendered document with a code block. " +
+      "Instead, first output the complete document as normal rendered Markdown, then add a 'Markdown Source' section and wrap only the Markdown source in a fenced md code block."
     ),
   searches: z
     .array(
@@ -175,7 +181,13 @@ export const webSearchPlanToolDeclaration: FunctionDeclaration = {
       outputFormat: {
         type: Type.STRING,
         description:
-          "The format the final report should take, e.g. 'markdown report with headings, bullets, and a short summary'.",
+          "The format the final report should take. The chat application renders responses with react-markdown. " +
+          "Return the final response as raw Markdown. Do NOT wrap the entire response inside a fenced code block such as ```markdown ... ``` or ``` ... ```. " +
+          "The response itself must be valid Markdown that renders immediately. " +
+          "Use headings, paragraphs, lists, tables, links, blockquotes, bold, italics, and inline code normally. " +
+          "Use fenced code blocks ONLY for actual code examples that are part of the content. " +
+          "If the user explicitly asks for a .md file, the Markdown source, a copyable Markdown version, or 'give me this in markdown', do not replace the rendered document with a code block. " +
+          "Instead, first output the complete document as normal rendered Markdown, then add a 'Markdown Source' section and wrap only the Markdown source in a fenced md code block.",
       },
       searches: {
         type: Type.ARRAY,

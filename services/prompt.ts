@@ -30,3 +30,45 @@ export function buildPromptWithHistory(userText: string, messages: Message[]): s
     userText,
   ].join("\n");
 }
+
+export interface RetrievedChunk {
+  content: string;
+  documentName?: string;
+}
+
+export function buildPromptWithRetrievedChunks(
+  userText: string,
+  messages: Message[],
+  chunks: RetrievedChunk[]
+): string {
+  const history = getHistoryMessages(messages);
+  const historyText = history.length
+    ? history
+        .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+        .join("\n\n")
+    : "No prior conversation.";
+
+  const contextBlocks = chunks
+    .map((chunk, index) => {
+      const source = chunk.documentName ? ` [Source: ${chunk.documentName}]` : "";
+      return `[Excerpt ${index + 1}]${source}\n${chunk.content}`;
+    })
+    .join("\n\n");
+
+  return [
+    "You are a helpful assistant answering questions based on uploaded documents.",
+    "Use ONLY the provided document excerpts to answer the user's question.",
+    "If the excerpts do not contain enough information, say so clearly.",
+    "Do not introduce information that is not supported by the excerpts.",
+    "Cite the source document when possible.",
+    "",
+    "=== Document excerpts ===",
+    contextBlocks || "No relevant excerpts found.",
+    "",
+    "=== Conversation history ===",
+    historyText,
+    "",
+    "=== Latest user message ===",
+    userText,
+  ].join("\n");
+}

@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const tavilyApiKey = process.env.TAVILY_API_KEY;
+const geminiEmbeddingModel = process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-2";
 
 if (!geminiApiKey) {
   throw new Error("Missing GEMINI_API_KEY environment variable");
@@ -52,4 +53,5 @@ export const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
 export const env = {
   geminiApiKey,
   tavilyApiKey,
+  geminiEmbeddingModel,
 } as const;

@@ -15,6 +15,20 @@
       "when": 1783676571890,
       "tag": "0001_nostalgic_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784113902677,
+      "tag": "0002_document_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784133217866,
+      "tag": "0003_update-embedding-dimensions",
+      "breakpoints": true
     }
   ]
 }

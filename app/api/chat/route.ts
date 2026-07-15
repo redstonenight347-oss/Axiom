@@ -5,8 +5,12 @@ import {
   persistUserMessage,
   ChatNotFoundError,
 } from "@/services/chat-session";
-import { buildPromptWithHistory } from "@/services/prompt";
+import { buildPromptWithHistory, buildPromptWithRetrievedChunks } from "@/services/prompt";
 import { runChatPipeline } from "@/services/chat-pipeline";
+import { retrieveRelevantChunks } from "@/lib/ai/retrieval";
+import { db } from "@/lib/db";
+import { document } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import type { Message } from "@/app/chats/types";
 
 export async function POST(req: NextRequest) {
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const userId = session.user.id;
   const body = await req.json().catch(() => ({}));
-  const { chatId, userText, messages = [] } = body;
+  const { chatId, userText, messages = [], documentIds = [] } = body;
 
   if (!userText || typeof userText !== "string") {
     return NextResponse.json({ error: "Missing userText" }, { status: 400 });
@@ -35,7 +39,33 @@ export async function POST(req: NextRequest) {
 
     await persistUserMessage({ chatId: activeChatId, content: userText });
 
-    const promptText = buildPromptWithHistory(userText, messages as Message[]);
+    const hasDocuments = Array.isArray(documentIds) && documentIds.length > 0;
+    let promptText: string;
+
+    if (hasDocuments) {
+      const chunks = await retrieveRelevantChunks({
+        chatId: activeChatId,
+        query: userText,
+        topK: 5,
+      });
+
+      const documentMap = await db.query.document.findMany({
+        where: eq(document.chatId, activeChatId),
+        columns: { id: true, name: true },
+      });
+      const nameById = new Map(documentMap.map((d) => [d.id, d.name]));
+
+      promptText = buildPromptWithRetrievedChunks(
+        userText,
+        messages as Message[],
+        chunks.map((chunk) => ({
+          content: chunk.content,
+          documentName: nameById.get(chunk.documentId),
+        }))
+      );
+    } else {
+      promptText = buildPromptWithHistory(userText, messages as Message[]);
+    }
 
     const result = await runChatPipeline({
       requestId,

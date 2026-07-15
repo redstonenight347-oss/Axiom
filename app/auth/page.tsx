@@ -181,7 +181,7 @@ export default function AuthPage() {
         <div className="mt-6 text-center text-xs text-white/50">
           {mode === "signin" ? (
             <>
-              Don't have an account?{" "}
+              <p>Don't have an account?{" "}</p>
               <button
                 type="button"
                 onClick={toggleMode}

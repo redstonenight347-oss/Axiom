@@ -10,6 +10,13 @@ export interface ChatListItem {
   updatedAt: string;
 }
 
+export interface AttachedDocument {
+  id: string;
+  name: string;
+  totalPages: number;
+  chunkCount: number;
+}
+
 interface ChatState {
   /* Core chat state */
   messages: Message[];
@@ -23,6 +30,11 @@ interface ChatState {
   chats: ChatListItem[];
   isLoadingChats: boolean;
   isMobileSidebarOpen: boolean;
+
+  /* Attached documents */
+  attachedDocuments: AttachedDocument[];
+  isUploading: boolean;
+  uploadError: string | null;
 
   /* Refs (mutable, not part of React reactivity) */
   messagesEndRef: RefObject<HTMLDivElement | null>;
@@ -45,6 +57,11 @@ interface ChatState {
   selectChat: (id: string) => void;
   deleteChat: (id: string) => Promise<void>;
 
+  /* Document upload actions */
+  uploadDocuments: (files: File[]) => Promise<void>;
+  removeAttachedDocument: (id: string) => void;
+  clearAttachedDocuments: () => void;
+
   /* Form/keyboard helpers */
   handleSubmit: (e: { preventDefault: () => void }) => void;
   handleKeyDown: (e: { key: string; shiftKey: boolean; preventDefault: () => void }) => void;
@@ -64,6 +81,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
   isLoadingChats: false,
   isMobileSidebarOpen: false,
+  attachedDocuments: [],
+  isUploading: false,
+  uploadError: null,
   messagesEndRef: createRef<HTMLDivElement>(),
   textareaRef: createRef<HTMLTextAreaElement>(),
 
@@ -164,6 +184,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     (async () => {
       try {
+        const documentIds = get().attachedDocuments.map((doc) => doc.id);
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -171,6 +193,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             chatId: currentChatId,
             userText: trimmed,
             messages: currentMessages,
+            documentIds,
           }),
         });
 
@@ -363,6 +386,63 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
+  },
+
+  uploadDocuments: async (files) => {
+    const state = get();
+    const maxSizeMb = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB ?? "10");
+    const maxSizeBytes = maxSizeMb * 1024 * 1024;
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    if (totalSize > maxSizeBytes) {
+      set({ uploadError: `Total upload size exceeds ${maxSizeMb} MB limit` });
+      return;
+    }
+
+    set({ isUploading: true, uploadError: null });
+
+    try {
+      const formData = new FormData();
+      formData.append("chatId", state.chatId ?? "");
+      files.forEach((file) => formData.append("files", file));
+
+      const res = await fetch("/api/upload/pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Upload failed" }));
+        set({ uploadError: data.error ?? "Upload failed" });
+        return;
+      }
+
+      const data = await res.json();
+      const uploaded: AttachedDocument[] = data.documents ?? [];
+
+      if (data.chatId && data.chatId !== get().chatId) {
+        get().setChatId(data.chatId);
+      }
+
+      set((prev) => ({
+        attachedDocuments: [...prev.attachedDocuments, ...uploaded],
+      }));
+    } catch (err) {
+      console.error("Failed to upload documents:", err);
+      set({ uploadError: "Failed to upload documents" });
+    } finally {
+      set({ isUploading: false });
+    }
+  },
+
+  removeAttachedDocument: (id) => {
+    set((prev) => ({
+      attachedDocuments: prev.attachedDocuments.filter((doc) => doc.id !== id),
+    }));
+  },
+
+  clearAttachedDocuments: () => {
+    set({ attachedDocuments: [], uploadError: null });
   },
 
   handleSubmit: (e) => {

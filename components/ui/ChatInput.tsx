@@ -96,6 +96,7 @@ export function ChatInput() {
           <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
+              value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Message Axiom…"
@@ -184,7 +185,7 @@ export function ChatInput() {
                   <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
-                <span className="max-w-[150px] truncate">{doc.name}</span>
+                <span className="max-w-37.5 truncate">{doc.name}</span>
                 <span className="text-white/40 text-xs">({doc.chunkCount} chunks)</span>
                 <button
                   type="button"

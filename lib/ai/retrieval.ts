@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { documentChunk, embedding } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { embedText } from "./embeddings";
 
 export interface RetrievedChunk {
@@ -14,6 +14,7 @@ export interface RetrieveOptions {
   chatId: string;
   query: string;
   topK?: number;
+  documentIds?: string[];
 }
 
 const DEFAULT_TOP_K = 5;
@@ -25,9 +26,12 @@ export async function retrieveRelevantChunks({
   chatId,
   query,
   topK = DEFAULT_TOP_K,
+  documentIds,
 }: RetrieveOptions): Promise<RetrievedChunk[]> {
   const { values } = await embedText(query);
   const vectorLiteral = `[${values.join(",")}]`;
+
+  const hasDocumentFilter = Array.isArray(documentIds) && documentIds.length > 0;
 
   const rows = await db
     .select({
@@ -40,7 +44,11 @@ export async function retrieveRelevantChunks({
     })
     .from(documentChunk)
     .innerJoin(embedding, eq(embedding.chunkId, documentChunk.id))
-    .where(eq(documentChunk.chatId, chatId))
+    .where(
+      hasDocumentFilter
+        ? sql`${eq(documentChunk.chatId, chatId)} AND ${inArray(documentChunk.documentId, documentIds)}`
+        : eq(documentChunk.chatId, chatId)
+    )
     .orderBy(sql`${embedding.vector} <=> ${vectorLiteral}::vector`)
     .limit(topK);
 

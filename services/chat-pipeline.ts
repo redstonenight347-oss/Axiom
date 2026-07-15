@@ -18,6 +18,7 @@ export interface PipelineInput {
   assistantMessageId: string;
   userText: string;
   promptText: string;
+  hasDocuments?: boolean;
 }
 
 export type PipelineResult =
@@ -29,8 +30,16 @@ export async function runChatPipeline({
   activeChatId,
   assistantMessageId,
   promptText,
+  hasDocuments,
 }: PipelineInput): Promise<PipelineResult> {
   const logPrefix = `[Chat API ${requestId}]`;
+
+  // When documents are attached, skip the web-search planner and answer directly
+  // from the document-aware prompt so the retrieved chunks are not discarded.
+  if (hasDocuments) {
+    console.log(`${logPrefix} Documents attached; skipping planner and answering from retrieved chunks.`);
+    return answerDirectly({ requestId, activeChatId, assistantMessageId, promptText });
+  }
 
   // 1. Planner: decide the cheapest viable strategy.
   let plan: WebSearchPlan;
@@ -205,6 +214,83 @@ export async function runChatPipeline({
           }
         }
         console.log(`${logPrefix} Report stream completed.`);
+      } catch (err) {
+        console.error(`${logPrefix} Stream execution error:`, err);
+        controller.error(err);
+        return;
+      }
+
+      controller.close();
+
+      await persistAssistantMessage({
+        id: assistantMessageId,
+        chatId: activeChatId,
+        content: fullContent,
+        error: false,
+      });
+
+      await touchChat(activeChatId);
+    },
+  });
+
+  return { type: "stream", stream };
+}
+
+interface DirectAnswerInput {
+  requestId: string;
+  activeChatId: string;
+  assistantMessageId: string;
+  promptText: string;
+}
+
+async function answerDirectly({
+  requestId,
+  activeChatId,
+  assistantMessageId,
+  promptText,
+}: DirectAnswerInput): Promise<PipelineResult> {
+  const logPrefix = `[Chat API ${requestId}]`;
+
+  let responseStream;
+  try {
+    console.log(`${logPrefix} Answering directly from document-aware prompt.`);
+    responseStream = await withModelFallback(
+      async (modelName) => {
+        const chatSession = createChat(modelName);
+        return chatSession.sendMessageStream({ message: promptText });
+      },
+      { label: "document-answer" }
+    );
+  } catch (err: unknown) {
+    console.error(`${logPrefix} Direct answer stream failed:`, err);
+    const rateLimited = isRateLimitError(err);
+    const errorContent = rateLimited
+      ? getRateLimitMessage()
+      : "Failed to connect to Gemini API.";
+
+    await persistAssistantMessage({
+      id: assistantMessageId,
+      chatId: activeChatId,
+      content: errorContent,
+      error: true,
+    });
+
+    return { type: "error", error: errorContent, status: rateLimited ? 429 : 502 };
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(sseStatus("Reading documents..."));
+
+      let fullContent = "";
+      try {
+        for await (const chunk of responseStream) {
+          if (chunk.text) {
+            controller.enqueue(sseContent(chunk.text));
+            fullContent += chunk.text;
+          }
+        }
+        console.log(`${logPrefix} Document answer stream completed.`);
       } catch (err) {
         console.error(`${logPrefix} Stream execution error:`, err);
         controller.error(err);

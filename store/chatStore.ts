@@ -160,12 +160,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((prev) => ({
       messages: [...prev.messages, userMsg],
       input: "",
+      attachedDocuments: [],
       isTyping: true,
       status: "Thinking...",
     }));
 
     const ta = state.textareaRef.current;
     if (ta) {
+      ta.value = "";
       ta.style.height = "auto";
     }
 

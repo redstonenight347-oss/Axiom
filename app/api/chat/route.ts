@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
         chatId: activeChatId,
         query: userText,
         topK: 5,
+        documentIds,
       });
+
+      console.log(`${logPrefix} Retrieved ${chunks.length} chunks for documentIds:`, documentIds);
 
       const documentMap = await db.query.document.findMany({
         where: eq(document.chatId, activeChatId),
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
       assistantMessageId,
       userText,
       promptText,
+      hasDocuments,
     });
 
     if (result.type === "error") {

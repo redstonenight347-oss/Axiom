@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Axiom",
   description: "Advanced AI chatbot",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
@@ -25,9 +28,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col font-sans text-base leading-relaxed">
+      <body className="min-h-full flex flex-col font-sans text-base leading-relaxed bg-[#0a0a0a] text-[#e5e2e1]">
         {children}
       </body>
     </html>

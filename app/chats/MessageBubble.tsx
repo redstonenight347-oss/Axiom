@@ -101,8 +101,8 @@ export function MessageBubble({ message, isTyping, isLast, status }: MessageBubb
       <div
         className={`relative min-w-0 max-w-[92%] sm:max-w-[88%] lg:max-w-[85%] xl:max-w-[88%] px-4 py-3 sm:px-5 sm:py-4 rounded-2xl text-base sm:text-lg leading-relaxed wrap-break-word ${
           isUser
-            ? "bg-linear-to-br from-purple-600/80 to-indigo-600/80 text-white rounded-br-md shadow-lg shadow-purple-500/10"
-            : `bg-white/5 text-white/85 border rounded-bl-md backdrop-blur-sm ${message.error ? "border-red-400/40" : "border-white/6"}`
+            ? "bg-primary-fixed/50 text-white rounded-br-md shadow-lg shadow-primary/10"
+            : `bg-surface-container-low/15 text-on-surface border rounded-bl-md backdrop-blur-sm ${message.error ? "border-red-400/40" : "border-outline-variant/20"}`
         }`}
       >
         {showTypingDots ? (

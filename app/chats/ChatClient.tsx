@@ -52,7 +52,7 @@ export function ChatClient({ initialChatId }: ChatClientProps) {
   }, [chatId, loadChat]);
 
   return (
-    <div className="flex h-screen bg-[#0a0a0f] text-white overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden">
       <AmbientBackground />
 
       {/* Desktop sidebar */}

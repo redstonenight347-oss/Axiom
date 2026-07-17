@@ -62,7 +62,7 @@ export default function AuthPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0a0f] px-4 text-white">
       <AmbientBackground />
 
-      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/8 bg-white/3 p-8 shadow-2xl backdrop-blur-xl">
+      <div className="relative z-10 w-full max-w-92 rounded-3xl border border-white/8 bg-white/3 p-8 shadow-2xl backdrop-blur-xl">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-purple-500 to-cyan-400 shadow-lg shadow-purple-500/20">
             <AxiomIcon className="h-6 w-6 text-white" />

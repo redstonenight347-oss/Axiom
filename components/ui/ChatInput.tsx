@@ -75,7 +75,7 @@ export function ChatInput() {
   return (
     <footer className="relative z-10 px-3 sm:px-4 pb-4 sm:pb-5 pt-3">
       {/* Top fade */}
-      <div className="pointer-events-none absolute -top-12 left-0 right-0 h-12 bg-linear-to-t from-[#0a0a0f] to-transparent" />
+      <div className="pointer-events-none absolute -top-12 left-0 right-0 h-12 bg-linear-to-t" />
 
       <form
         onSubmit={handleSubmit}

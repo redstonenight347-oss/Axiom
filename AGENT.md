@@ -9,3 +9,13 @@
 # Additional points
 - When adding code make sure that it fits to its surrounding code. Meaning added code shouldn't break other part of the code unless asked
 - If my decisions are poor then you may give suggestions while not implementing it immediately unless asked
+
+# Rate limiting
+- All API routes under `app/api/` are protected by an in-memory rate limiter implemented in `lib/rate-limit.ts` and configured in `lib/rate-limit-config.ts`.
+- Default limits:
+  - `POST /api/chat`: 10 requests / minute per user
+  - `POST /api/upload/pdf`: 5 uploads / hour per user
+  - `GET/DELETE /api/chats` and `GET /api/chats/[id]`: 60 requests / minute per user
+  - `GET/POST /api/auth/[...all]`: 10 requests / minute per IP
+- Exceeded limits return `429 Too Many Requests` with `Retry-After` and `X-RateLimit-*` headers.
+- The in-memory store is fine for a single instance / development. For production with multiple instances or serverless, replace it with Upstash Redis + `@upstash/ratelimit` (see the comment at the top of `lib/rate-limit.ts`).

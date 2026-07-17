@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { checkRateLimit, getClientIdentifier, rateLimitResponse } from "@/lib/rate-limit";
+import { rateLimits } from "@/lib/rate-limit-config";
 import { db } from "@/lib/db";
 import { chat, document, documentChunk, embedding } from "@/lib/db/schema";
 import { parsePdf } from "@/lib/pdf/parser";
@@ -25,6 +27,15 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = session.user.id;
+
+  const rateLimit = checkRateLimit({
+    key: `${getClientIdentifier(req, userId)}:${rateLimits.upload.name}`,
+    limit: rateLimits.upload.limit,
+    windowMs: rateLimits.upload.windowMs,
+  });
+  if (!rateLimit.success) {
+    return rateLimitResponse(rateLimit);
+  }
   const contentLength = req.headers.get("content-length");
   if (contentLength && Number(contentLength) > MAX_UPLOAD_SIZE_BYTES) {
     return NextResponse.json(

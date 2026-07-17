@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { checkRateLimit, getClientIdentifier, rateLimitResponse } from "@/lib/rate-limit";
+import { rateLimits } from "@/lib/rate-limit-config";
 import { db } from "@/lib/db";
 import { chat, message } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
@@ -14,6 +16,15 @@ export async function GET(
   }
 
   const userId = session.user.id;
+
+  const rateLimit = checkRateLimit({
+    key: `${getClientIdentifier(req, userId)}:${rateLimits.chats.name}`,
+    limit: rateLimits.chats.limit,
+    windowMs: rateLimits.chats.windowMs,
+  });
+  if (!rateLimit.success) {
+    return rateLimitResponse(rateLimit);
+  }
   const { id } = await params;
 
   const existingChat = await db.query.chat.findFirst({

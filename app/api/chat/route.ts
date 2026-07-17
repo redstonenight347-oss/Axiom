@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { checkRateLimit, getClientIdentifier, rateLimitResponse } from "@/lib/rate-limit";
+import { rateLimits } from "@/lib/rate-limit-config";
 import {
   resolveChatSession,
   persistUserMessage,
@@ -20,6 +22,15 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = session.user.id;
+
+  const rateLimit = checkRateLimit({
+    key: `${getClientIdentifier(req, userId)}:${rateLimits.chat.name}`,
+    limit: rateLimits.chat.limit,
+    windowMs: rateLimits.chat.windowMs,
+  });
+  if (!rateLimit.success) {
+    return rateLimitResponse(rateLimit);
+  }
   const body = await req.json().catch(() => ({}));
   const { chatId, userText, messages = [], documentIds = [] } = body;
 

@@ -33,6 +33,7 @@ export async function retrieveRelevantChunks({
 
   const hasDocumentFilter = Array.isArray(documentIds) && documentIds.length > 0;
 
+// The '<=>' oparation gives the distance between the two vectors. Closer the distance - higher in the rank
   const rows = await db
     .select({
       id: documentChunk.id,

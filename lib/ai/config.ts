@@ -16,9 +16,10 @@ if (!tavilyApiKey) {
 // The router will cycle through these on rate-limit / quota errors.
 export const GEMINI_MODELS = [
   "gemini-3.1-flash-lite",
-  // Add fallback model names here, e.g.:
-  // "gemini-2.0-flash",
-  // "gemini-1.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-3-flash",
+  "gemini-3.5-flash"
 ];
 
 // Maximum number of model fallback attempts across the whole list.

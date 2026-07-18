@@ -2,19 +2,12 @@
 
 import { create } from "zustand";
 import type { RefObject } from "react";
-import type { Message } from "@/app/chats/types";
+import type { Message, AttachedDocument } from "@/app/chats/types";
 
 export interface ChatListItem {
   id: string;
   title: string;
   updatedAt: string;
-}
-
-export interface AttachedDocument {
-  id: string;
-  name: string;
-  totalPages: number;
-  chunkCount: number;
 }
 
 interface ChatState {
@@ -29,6 +22,7 @@ interface ChatState {
   /* Sidebar state */
   chats: ChatListItem[];
   isLoadingChats: boolean;
+  isLoadingChat: boolean;
   isMobileSidebarOpen: boolean;
 
   /* Attached documents */
@@ -80,6 +74,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   initialChatId: null,
   chats: [],
   isLoadingChats: false,
+  isLoadingChat: false,
   isMobileSidebarOpen: false,
   attachedDocuments: [],
   isUploading: false,
@@ -124,6 +119,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadChat: async (id) => {
+    set({ isLoadingChat: true });
     try {
       const res = await fetch(`/api/chats/${id}`);
       if (!res.ok) {
@@ -131,16 +127,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
       const data = await res.json();
+
+      const documentsByMessageId = new Map<string, AttachedDocument[]>();
+      for (const doc of data.documents ?? []) {
+        if (doc.messageId) {
+          const list = documentsByMessageId.get(doc.messageId) ?? [];
+          list.push({
+            id: doc.id,
+            name: doc.name,
+            totalPages: doc.totalPages,
+            chunkCount: doc.chunkCount,
+          });
+          documentsByMessageId.set(doc.messageId, list);
+        }
+      }
+
       const loadedMessages: Message[] = (data.messages ?? []).map(
         (msg: Message & { timestamp: string }) => ({
           ...msg,
           timestamp: new Date(msg.timestamp),
+          documents: documentsByMessageId.get(msg.id),
         })
       );
       set({ messages: loadedMessages });
     } catch (err) {
       console.error("Failed to load chat:", err);
       set({ messages: [] });
+    } finally {
+      set({ isLoadingChat: false });
     }
   },
 
@@ -155,6 +169,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       role: "user",
       content: trimmed,
       timestamp: new Date(),
+      documents: state.attachedDocuments.length > 0 ? [...state.attachedDocuments] : undefined,
     };
 
     set((prev) => ({
@@ -364,7 +379,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   startNewChat: () => {
-    set({ chatId: null, messages: [], input: "", status: null, isMobileSidebarOpen: false });
+    set({ chatId: null, messages: [], input: "", status: null, isLoadingChat: false, isMobileSidebarOpen: false });
     const ta = get().textareaRef.current;
     if (ta) {
       ta.style.height = "auto";

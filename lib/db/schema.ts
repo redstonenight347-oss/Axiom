@@ -93,6 +93,7 @@ export const document = pgTable("document", {
   chatId: text("chat_id")
     .notNull()
     .references(() => chat.id, { onDelete: "cascade" }),
+  messageId: text("message_id").references(() => message.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   totalPages: integer("total_pages").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -124,6 +125,7 @@ export const embedding = pgTable("embedding", {
 
 export const documentRelations = relations(document, ({ one, many }) => ({
   chat: one(chat, { fields: [document.chatId], references: [chat.id] }),
+  message: one(message, { fields: [document.messageId], references: [message.id] }),
   chunks: many(documentChunk),
 }));
 

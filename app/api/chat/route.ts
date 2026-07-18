@@ -5,6 +5,7 @@ import { rateLimits } from "@/lib/rate-limit-config";
 import {
   resolveChatSession,
   persistUserMessage,
+  linkDocumentsToMessage,
   ChatNotFoundError,
 } from "@/services/chat-session";
 import { buildPromptWithHistory, buildPromptWithRetrievedChunks } from "@/services/prompt";
@@ -48,7 +49,11 @@ export async function POST(req: NextRequest) {
       userText,
     });
 
-    await persistUserMessage({ chatId: activeChatId, content: userText });
+    const userMessageId = await persistUserMessage({ chatId: activeChatId, content: userText });
+
+    if (Array.isArray(documentIds) && documentIds.length > 0) {
+      await linkDocumentsToMessage({ messageId: userMessageId, documentIds });
+    }
 
     const hasDocuments = Array.isArray(documentIds) && documentIds.length > 0;
     let promptText: string;

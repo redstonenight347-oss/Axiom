@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { chat, message } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { chat, message, document } from "@/lib/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { truncateTitle } from "./prompt";
 
 export interface ResolveChatSessionInput {
@@ -54,14 +54,32 @@ export interface PersistUserMessageInput {
 export async function persistUserMessage({
   chatId,
   content,
-}: PersistUserMessageInput): Promise<void> {
+}: PersistUserMessageInput): Promise<string> {
+  const id = crypto.randomUUID();
   await db.insert(message).values({
-    id: crypto.randomUUID(),
+    id,
     chatId,
     role: "user",
     content,
     error: false,
   });
+  return id;
+}
+
+export interface LinkDocumentsToMessageInput {
+  messageId: string;
+  documentIds: string[];
+}
+
+export async function linkDocumentsToMessage({
+  messageId,
+  documentIds,
+}: LinkDocumentsToMessageInput): Promise<void> {
+  if (documentIds.length === 0) return;
+  await db
+    .update(document)
+    .set({ messageId })
+    .where(and(inArray(document.id, documentIds)));
 }
 
 export interface PersistAssistantMessageInput {

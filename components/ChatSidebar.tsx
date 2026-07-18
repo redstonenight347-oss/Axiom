@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useChatStore } from "@/store/chatStore";
 import Image from "next/image";
 import { authClient } from "@/lib/auth/client";
@@ -15,8 +17,10 @@ export function ChatSidebar() {
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.chatId);
   const isLoading = useChatStore((state) => state.isLoadingChats);
+  const isLoadingChat = useChatStore((state) => state.isLoadingChat);
   const startNewChat = useChatStore((state) => state.startNewChat);
   const deleteChat = useChatStore((state) => state.deleteChat);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -72,11 +76,16 @@ export function ChatSidebar() {
               return (
                 <li key={item.id}>
                   <div
-                    className={`group flex items-center justify-between px-md py-sm rounded-lg transition-all duration-200 cursor-pointer ${isActive
+                    className={`group flex items-center justify-between px-md py-sm rounded-lg transition-all duration-200 ${isActive
                         ? "bg-white/10 text-primary border-l-2 border-primary translate-x-1"
-                        : "text-on-surface-variant opacity-70 hover:bg-surface-variant/20 border-l-2 border-transparent"
+                        : isLoadingChat
+                          ? "text-on-surface-variant opacity-40 cursor-not-allowed border-l-2 border-transparent"
+                          : "text-on-surface-variant opacity-70 hover:bg-surface-variant/20 border-l-2 border-transparent cursor-pointer"
                       }`}
-                    onClick={() => router.push(`/chats?id=${encodeURIComponent(item.id)}`)}
+                    onClick={() => {
+                      if (isLoadingChat || isActive) return;
+                      router.push(`/chats?id=${encodeURIComponent(item.id)}`);
+                    }}
                   >
                     <div className="min-w-0 flex-1 flex items-center gap-sm">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +100,7 @@ export function ChatSidebar() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteChat(item.id);
+                        setChatToDelete(item.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200 ml-2"
                       aria-label="Delete chat"
@@ -110,6 +119,42 @@ export function ChatSidebar() {
           </ul>
         )}
       </nav>
+
+      {chatToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              onClick={() => setChatToDelete(null)}
+            />
+            <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-white/10 bg-surface-container-low/95 backdrop-blur-xl p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-on-surface mb-2">
+                Delete chat?
+              </h3>
+              <p className="text-sm text-on-surface-variant mb-6">
+                This action cannot be undone. The chat and all its messages will be permanently removed.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setChatToDelete(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-on-surface-variant hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    deleteChat(chatToDelete);
+                    setChatToDelete(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-error text-on-error hover:bg-error/90 transition-colors cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Footer Tabs */}
       <div className="mt-auto flex flex-col gap-y-base pt-md border-t border-outline-variant/20">

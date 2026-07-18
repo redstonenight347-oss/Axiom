@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from "@/lib/rate-limit";
 import { rateLimits } from "@/lib/rate-limit-config";
 import { db } from "@/lib/db";
-import { chat, message } from "@/lib/db/schema";
+import { chat, message, document } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
 export async function GET(
@@ -40,6 +40,16 @@ export async function GET(
     orderBy: [asc(message.createdAt)],
   });
 
+  const documents = await db.query.document.findMany({
+    where: eq(document.chatId, id),
+    columns: { id: true, messageId: true, name: true, totalPages: true },
+    with: {
+      chunks: {
+        columns: { id: true },
+      },
+    },
+  });
+
   return NextResponse.json({
     chat: existingChat,
     messages: messages.map((msg) => ({
@@ -48,6 +58,13 @@ export async function GET(
       content: msg.content,
       error: msg.error,
       timestamp: msg.createdAt,
+    })),
+    documents: documents.map((doc) => ({
+      id: doc.id,
+      messageId: doc.messageId,
+      name: doc.name,
+      totalPages: doc.totalPages,
+      chunkCount: doc.chunks?.length ?? 0,
     })),
   });
 }

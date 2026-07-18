@@ -3,13 +3,24 @@
 import { useState, useCallback } from "react";
 import { AxiomIcon } from "@/components/ui/AxiomIcon";
 import { Markdown } from "./Markdown";
-import type { Message } from "./types";
+import type { Message, AttachedDocument } from "./types";
 
 interface MessageBubbleProps {
   message: Message;
   isTyping: boolean;
   isLast: boolean;
   status?: string | null;
+}
+
+function PdfBadge({ doc }: { doc: AttachedDocument }) {
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-md border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs sm:text-sm">
+      <span className="font-bold text-red-400">PDF</span>
+      <span className="truncate max-w-[12rem] sm:max-w-[16rem] text-white/80" title={doc.name}>
+        {doc.name}
+      </span>
+    </div>
+  );
 }
 
 function formatTime(d: Date) {
@@ -105,6 +116,14 @@ export function MessageBubble({ message, isTyping, isLast, status }: MessageBubb
             : `bg-surface-container-low/15 text-on-surface border rounded-bl-md backdrop-blur-sm ${message.error ? "border-red-400/40" : "border-outline-variant/20"}`
         }`}
       >
+        {message.documents && message.documents.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {message.documents.map((doc) => (
+              <PdfBadge key={doc.id} doc={doc} />
+            ))}
+          </div>
+        )}
+
         {showTypingDots ? (
           <div className="flex flex-col gap-1">
             <div className="flex gap-1.5 py-1">

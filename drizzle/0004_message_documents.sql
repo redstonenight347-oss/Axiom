@@ -1,0 +1,2 @@
+ALTER TABLE "document" ADD COLUMN "message_id" text;--> statement-breakpoint
+ALTER TABLE "document" ADD CONSTRAINT "document_message_id_message_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."message"("id") ON DELETE cascade ON UPDATE no action;

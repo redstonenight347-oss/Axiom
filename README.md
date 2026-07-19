@@ -182,6 +182,28 @@ Axiom is designed to run on Vercel or any Node.js hosting platform that supports
 3. Run `npm run db:push` (or `npm run db:migrate`) against your production database.
 4. Deploy with `npm run build`.
 
+### Docker
+
+You can also build and run Axiom as a Docker container.
+
+**Build the image:**
+
+```bash
+docker build -t axiom .
+```
+
+**Run the container:**
+
+```bash
+docker run -d \
+  -p 3000:3000 \
+  --env-file .env.local \
+  --name axiom \
+  axiom
+```
+
+Make sure your `.env.local` contains all required variables (see the [Configure environment variables](#2-configure-environment-variables) section). The container starts the Next.js standalone server on port `3000`.
+
 ## License
 
 [MIT](LICENSE)

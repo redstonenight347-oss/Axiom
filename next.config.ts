@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       "@neondatabase/serverless",
     ],
   },
+  devIndicators: false,
 };
 
 export default nextConfig;

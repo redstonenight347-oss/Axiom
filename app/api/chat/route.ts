@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
       promptText,
       hasDocuments,
       preferredModel,
+      userId,
     });
 
     if (result.type === "error") {

@@ -8,6 +8,7 @@ import { summarizeSearchResults } from "@/lib/ai/summarizer";
 import { generateReportStream } from "@/lib/ai/report-generator";
 import { withModelFallback, createChat } from "@/lib/ai/model-router";
 import { persistAssistantMessage, touchChat } from "./chat-session";
+import { incrementModelUsage } from "./model-usage";
 import { sseStatus, sseContent } from "./sse";
 import { isRateLimitError, getRateLimitMessage } from "./error-helpers";
 import type { WebSearchPlan } from "@/lib/ai/tools";
@@ -20,6 +21,7 @@ export interface PipelineInput {
   promptText: string;
   hasDocuments?: boolean;
   preferredModel?: string | null;
+  userId?: string;
 }
 
 export type PipelineResult =
@@ -33,6 +35,7 @@ export async function runChatPipeline({
   promptText,
   hasDocuments,
   preferredModel,
+  userId,
 }: PipelineInput): Promise<PipelineResult> {
   const logPrefix = `[Chat API ${requestId}]`;
 
@@ -40,14 +43,14 @@ export async function runChatPipeline({
   // from the document-aware prompt so the retrieved chunks are not discarded.
   if (hasDocuments) {
     console.log(`${logPrefix} Documents attached; skipping planner and answering from retrieved chunks.`);
-    return answerDirectly({ requestId, activeChatId, assistantMessageId, promptText, preferredModel });
+    return answerDirectly({ requestId, activeChatId, assistantMessageId, promptText, preferredModel, userId });
   }
 
   // 1. Planner: decide the cheapest viable strategy.
   let plan: WebSearchPlan;
   try {
     console.log(`${logPrefix} Planning...`);
-    plan = await planWebSearches(promptText);
+    plan = await planWebSearches(promptText, userId);
     console.log(`${logPrefix} Plan:`, JSON.stringify(plan, null, 2));
   } catch (err: unknown) {
     console.error(`${logPrefix} Planner failed:`, err);
@@ -157,7 +160,7 @@ export async function runChatPipeline({
 
   const summaries =
     shouldSummarize && executedSearches.length > 0
-      ? await summarizeSearchResults(plan, executedSearches)
+      ? await summarizeSearchResults(plan, executedSearches, userId)
       : [];
 
   const summarizationFailures = summaries.filter((s) => s.error).length;
@@ -166,16 +169,19 @@ export async function runChatPipeline({
   }
 
   // 6. Build the final response stream.
-  let responseStream;
+  let reportResult: Awaited<ReturnType<typeof generateReportStream>> | undefined;
+  let responseStream: AsyncIterable<{ text?: string; usageMetadata?: unknown }>;
   try {
     if (summaries.length > 0 && !summaries.every((s) => s.error)) {
       console.log(`${logPrefix} Generating report from summaries...`);
-      responseStream = await generateReportStream(promptText, plan, { summaries });
+      reportResult = await generateReportStream(promptText, plan, { summaries });
+      responseStream = reportResult.result;
     } else if (executedSearches.length > 0) {
       console.log(`${logPrefix} Generating report from raw search results...`);
-      responseStream = await generateReportStream(promptText, plan, {
+      reportResult = await generateReportStream(promptText, plan, {
         rawResults: executedSearches,
       });
+      responseStream = reportResult.result;
     } else {
       console.log(`${logPrefix} No searches planned; answering directly.`);
       responseStream = await withModelFallback(
@@ -224,6 +230,20 @@ export async function runChatPipeline({
 
       controller.close();
 
+      if (userId && reportResult) {
+        const streamTokens = (responseStream as unknown as { tokensUsed?: number }).tokensUsed;
+        const tokens =
+          streamTokens ??
+          reportResult.tokensUsed ??
+          0;
+        await incrementModelUsage({
+          userId,
+          model: reportResult.modelName,
+          requests: 1,
+          tokens,
+        });
+      }
+
       await persistAssistantMessage({
         id: assistantMessageId,
         chatId: activeChatId,
@@ -251,14 +271,17 @@ async function answerDirectly({
   assistantMessageId,
   promptText,
   preferredModel,
-}: DirectAnswerInput & { preferredModel?: string | null }): Promise<PipelineResult> {
+  userId,
+}: DirectAnswerInput & { preferredModel?: string | null; userId?: string }): Promise<PipelineResult> {
   const logPrefix = `[Chat API ${requestId}]`;
 
   let responseStream;
+  let directModelName: string | undefined;
   try {
     console.log(`${logPrefix} Answering directly from document-aware prompt.`);
     responseStream = await withModelFallback(
       async (modelName) => {
+        directModelName = modelName;
         const chatSession = createChat(modelName);
         return chatSession.sendMessageStream({ message: promptText });
       },
@@ -301,6 +324,16 @@ async function answerDirectly({
       }
 
       controller.close();
+
+      if (userId && directModelName) {
+        const streamTokens = (responseStream as unknown as { tokensUsed?: number }).tokensUsed;
+        await incrementModelUsage({
+          userId,
+          model: directModelName,
+          requests: 1,
+          tokens: streamTokens ?? 0,
+        });
+      }
 
       await persistAssistantMessage({
         id: assistantMessageId,

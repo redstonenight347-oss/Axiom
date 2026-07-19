@@ -1,4 +1,4 @@
-import { withModelFallback, createChat } from "./model-router";
+import { withStreamingModelFallback, createChat } from "./model-router";
 import type { WebSearchPlan } from "./tools";
 import type { SummarizedSearch } from "./summarizer";
 import type { ExecutedSearch } from "./executor";
@@ -229,7 +229,7 @@ export async function generateReportStream(
       ? buildReportPromptFromSummaries(userText, plan, input.summaries)
       : buildReportPromptFromRawResults(userText, plan, input.rawResults);
 
-  return withModelFallback(
+  return withStreamingModelFallback(
     async (modelName) => {
       const chat = createChat(modelName);
       return chat.sendMessageStream({ message: prompt });

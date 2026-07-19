@@ -1,15 +1,27 @@
 // Browser-safe constants shared between client and server.
 // Do NOT import environment variables or server-only constructors here.
 
+export interface ModelLimit {
+  /** Requests Per Minute */
+  rpm: number;
+  /** Tokens Per Minute */
+  tpm: number;
+  /** Requests Per Day */
+  rpd: number;
+}
+
+/** Per-model API limits. Keep this in sync with the model list below. */
+export const MODEL_LIMITS: Record<string, ModelLimit> = {
+  "gemini-3.1-flash-lite": { rpm: 15, tpm: 250000, rpd: 500 },
+  "gemini-2.5-flash-lite": { rpm: 10, tpm: 250000, rpd: 20 },
+  "gemini-2.5-flash": { rpm: 5, tpm: 250000, rpd: 20 },
+  "gemini-3-flash": { rpm: 5, tpm: 250000, rpd: 20 },
+  "gemini-3.5-flash": { rpm: 5, tpm: 250000, rpd: 20 },
+};
+
 // Ordered list of Gemini models to try. The first one is the default.
 // The router will cycle through these on rate-limit / quota errors.
-export const GEMINI_MODELS = [
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-3-flash",
-  "gemini-3.5-flash"
-];
+export const GEMINI_MODELS = Object.keys(MODEL_LIMITS);
 
 // Maximum number of model fallback attempts across the whole list.
 // 1 means only the first model is tried; 2 means try up to 2 models, etc.

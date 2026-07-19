@@ -1,5 +1,6 @@
 import { MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./constants";
 import { withModelFallback } from "./model-router";
+import { incrementModelUsage } from "@/services/model-usage";
 import type { ExecutedSearch } from "./executor";
 
 export interface SummarizedSearch {
@@ -24,7 +25,8 @@ function truncate(text: string, maxLength: number): string {
 async function summarizeOneSearch(
   search: ExecutedSearch,
   whatToExtract: string,
-  priority: number
+  priority: number,
+  userId?: string
 ): Promise<SummarizedSearch> {
   if (search.error || search.results.length === 0) {
     return {
@@ -94,6 +96,15 @@ async function summarizeOneSearch(
       { label: `summarizer: ${search.query.slice(0, 40)}` }
     );
 
+    const usedModel = response.modelVersion ?? undefined;
+    if (userId && usedModel) {
+      const tokens =
+        response.usageMetadata?.totalTokenCount ??
+        ((response.usageMetadata?.promptTokenCount ?? 0) +
+          (response.usageMetadata?.candidatesTokenCount ?? 0));
+      await incrementModelUsage({ userId, model: usedModel, requests: 1, tokens });
+    }
+
     const text = response.text ?? "";
     const [summaryPart, ...keyFactsParts] = text.split(/\n*Key Facts:\n*/i);
     const summary = summaryPart.trim();
@@ -137,7 +148,8 @@ export async function summarizeSearchResults(
       priority: number;
     }[];
   },
-  executedSearches: ExecutedSearch[]
+  executedSearches: ExecutedSearch[],
+  userId?: string
 ): Promise<SummarizedSearch[]> {
   const planByQuery = new Map(
     plan.searches.map((item) => [item.query, item])
@@ -147,7 +159,7 @@ export async function summarizeSearchResults(
     const planItem = planByQuery.get(search.query);
     const whatToExtract = planItem?.whatToExtract ?? "Extract the most relevant information.";
     const priority = planItem?.priority ?? 3;
-    return summarizeOneSearch(search, whatToExtract, priority);
+    return summarizeOneSearch(search, whatToExtract, priority, userId);
   });
 
   return Promise.all(summaries);

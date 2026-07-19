@@ -7,8 +7,7 @@ import { useChatStore } from "@/store/chatStore";
 import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { authClient } from "@/lib/auth/client";
-import { GEMINI_MODELS } from "@/lib/ai/constants";
-import { rateLimits } from "@/lib/rate-limit-config";
+import { GEMINI_MODELS, MODEL_LIMITS } from "@/lib/ai/constants";
 
 interface SettingsUser {
   id: string;
@@ -117,8 +116,6 @@ export function SettingsClient({ user }: SettingsClientProps) {
       setShowDeleteModal(false);
     }
   };
-
-  const chatLimit = rateLimits.chat.limit;
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -289,36 +286,52 @@ export function SettingsClient({ user }: SettingsClientProps) {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {GEMINI_MODELS.map((model) => {
+                        const limits = MODEL_LIMITS[model];
                         const item = usage.find((u) => u.model === model);
                         const requestsUsed = item?.requestsUsed ?? 0;
                         const tokensUsed = item?.tokensUsed ?? 0;
-                        const progress = Math.min(
+
+                        const tpmRemaining = Math.max(0, limits.tpm - tokensUsed);
+                        const tpmProgress = Math.min(
                           100,
-                          Math.round((requestsUsed / chatLimit) * 100)
+                          Math.round((tokensUsed / limits.tpm) * 100)
                         );
+
                         return (
                           <div
                             key={model}
                             className="rounded-xl border border-outline-variant/20 bg-white/5 p-4"
                           >
+                            <h3 className="text-title-md font-semibold text-on-surface mb-3">
+                              {model}
+                            </h3>
+
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-body-md text-on-surface">
-                                {model}
+                              <span className="text-label-sm text-on-surface-variant">
+                                Estimated tokens remaining
                               </span>
                               <span className="text-label-sm text-on-surface-variant">
-                                {requestsUsed} / {chatLimit} requests
+                                {tpmRemaining.toLocaleString()} / {limits.tpm.toLocaleString()}
                               </span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-surface-variant/30 overflow-hidden mb-2">
+                            <div className="h-3 w-full rounded-full bg-surface-variant/30 overflow-hidden mb-4">
                               <div
-                                className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${progress}%` }}
+                                className="h-full rounded-full bg-linear-to-r from-emerald-400 to-primary transition-all"
+                                style={{
+                                  width: `${Math.max(0, 100 - tpmProgress)}%`,
+                                }}
                               />
                             </div>
-                            <div className="text-label-sm text-on-surface-variant">
-                              {tokensUsed.toLocaleString()} tokens used
+
+                            <div className="flex items-center justify-between text-body-sm text-on-surface-variant">
+                              <span>
+                                {requestsUsed} / {limits.rpm} req per minute
+                              </span>
+                              <span>
+                                {requestsUsed} / {limits.rpd} req per day
+                              </span>
                             </div>
                           </div>
                         );

@@ -1,6 +1,7 @@
 import { FunctionCallingConfigMode } from "@google/genai";
 import { MAX_PLANNER_SEARCHES } from "./constants";
 import { withModelFallback, createChat } from "./model-router";
+import { incrementModelUsage } from "@/services/model-usage";
 import {
   webSearchPlanToolDeclaration,
   WEB_SEARCH_PLAN_TOOL_NAME,
@@ -12,7 +13,8 @@ import {
  * Returns a structured plan: strategy, optional direct answer, searches, and report instructions.
  */
 export async function planWebSearches(
-  userText: string
+  userText: string,
+  userId?: string
 ): Promise<WebSearchPlan> {
   const response = await withModelFallback(
     async (modelName) => {
@@ -46,6 +48,21 @@ export async function planWebSearches(
 
   // Clamp the number of searches to the allowed range as a safety net.
   const clampedSearches = (args.searches ?? []).slice(0, MAX_PLANNER_SEARCHES);
+
+  const usedModel = response.modelVersion ?? undefined;
+
+  if (userId && usedModel) {
+    const tokens =
+      response.usageMetadata?.totalTokenCount ??
+      ((response.usageMetadata?.promptTokenCount ?? 0) +
+        (response.usageMetadata?.candidatesTokenCount ?? 0));
+    await incrementModelUsage({
+      userId,
+      model: usedModel,
+      requests: 1,
+      tokens,
+    });
+  }
 
   return {
     strategy: args.strategy ?? "direct_answer",

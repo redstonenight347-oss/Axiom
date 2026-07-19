@@ -6,7 +6,7 @@ export default function BackgroundImage() {
   const pathname = usePathname();
 
   // Hide background on chat pages
-  if (pathname.startsWith("/chats")) {
+  if (pathname.startsWith("/chats") || pathname.startsWith("/settings")) {
     return (
       <img
         src="/background_logo.png"

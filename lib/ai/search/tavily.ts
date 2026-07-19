@@ -1,9 +1,9 @@
+import { env } from "../config";
 import {
-  env,
   TAVILY_TIMEOUT_MS,
   TAVILY_MAX_RETRIES,
   TAVILY_RETRY_BASE_DELAY_MS,
-} from "../config";
+} from "../constants";
 import type { SearchProvider, SearchResult } from "./types";
 
 interface TavilyResult {

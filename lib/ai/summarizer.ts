@@ -1,4 +1,4 @@
-import { MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./config";
+import { MAX_RESULT_CONTENT_CHARS, MAX_SUMMARY_CHARS } from "./constants";
 import { withModelFallback } from "./model-router";
 import type { ExecutedSearch } from "./executor";
 

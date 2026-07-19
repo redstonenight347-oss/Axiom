@@ -1,7 +1,7 @@
 import {
   MAX_SEARCH_RESULTS_PER_QUERY,
   MAX_RAW_CHARS_FOR_DIRECT_REPORT,
-} from "@/lib/ai/config";
+} from "@/lib/ai/constants";
 import { planWebSearches } from "@/lib/ai/planner";
 import { executeSearchPlan, allSearchesFailed } from "@/lib/ai/executor";
 import { summarizeSearchResults } from "@/lib/ai/summarizer";
@@ -19,6 +19,7 @@ export interface PipelineInput {
   userText: string;
   promptText: string;
   hasDocuments?: boolean;
+  preferredModel?: string | null;
 }
 
 export type PipelineResult =
@@ -31,6 +32,7 @@ export async function runChatPipeline({
   assistantMessageId,
   promptText,
   hasDocuments,
+  preferredModel,
 }: PipelineInput): Promise<PipelineResult> {
   const logPrefix = `[Chat API ${requestId}]`;
 
@@ -38,7 +40,7 @@ export async function runChatPipeline({
   // from the document-aware prompt so the retrieved chunks are not discarded.
   if (hasDocuments) {
     console.log(`${logPrefix} Documents attached; skipping planner and answering from retrieved chunks.`);
-    return answerDirectly({ requestId, activeChatId, assistantMessageId, promptText });
+    return answerDirectly({ requestId, activeChatId, assistantMessageId, promptText, preferredModel });
   }
 
   // 1. Planner: decide the cheapest viable strategy.
@@ -181,7 +183,7 @@ export async function runChatPipeline({
           const chatSession = createChat(modelName);
           return chatSession.sendMessageStream({ message: promptText });
         },
-        { label: "direct-answer" }
+        { label: "direct-answer", preferredModel }
       );
     }
   } catch (err: unknown) {
@@ -248,7 +250,8 @@ async function answerDirectly({
   activeChatId,
   assistantMessageId,
   promptText,
-}: DirectAnswerInput): Promise<PipelineResult> {
+  preferredModel,
+}: DirectAnswerInput & { preferredModel?: string | null }): Promise<PipelineResult> {
   const logPrefix = `[Chat API ${requestId}]`;
 
   let responseStream;
@@ -259,7 +262,7 @@ async function answerDirectly({
         const chatSession = createChat(modelName);
         return chatSession.sendMessageStream({ message: promptText });
       },
-      { label: "document-answer" }
+      { label: "document-answer", preferredModel }
     );
   } catch (err: unknown) {
     console.error(`${logPrefix} Direct answer stream failed:`, err);

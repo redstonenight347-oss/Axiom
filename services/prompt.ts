@@ -1,4 +1,4 @@
-import { MAX_HISTORY_MESSAGES } from "@/lib/ai/config";
+import { MAX_HISTORY_MESSAGES } from "@/lib/ai/constants";
 import type { Message } from "@/app/chats/types";
 
 export function truncateTitle(text: string, maxLength = 60): string {
@@ -12,15 +12,28 @@ export function getHistoryMessages(messages: Message[]): Message[] {
   return messages.slice(-MAX_HISTORY_MESSAGES);
 }
 
-export function buildPromptWithHistory(userText: string, messages: Message[]): string {
+function buildSystemInstruction(customPrompt?: string | null): string[] {
+  if (!customPrompt?.trim()) return [];
+  return ["=== System instructions ===", customPrompt.trim(), ""];
+}
+
+export function buildPromptWithHistory(
+  userText: string,
+  messages: Message[],
+  customPrompt?: string | null
+): string {
   const history = getHistoryMessages(messages);
-  if (history.length === 0) return userText;
+  if (history.length === 0) {
+    const system = buildSystemInstruction(customPrompt);
+    return [...system, userText].join("\n").trim();
+  }
 
   const historyText = history
     .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
     .join("\n\n");
 
   return [
+    ...buildSystemInstruction(customPrompt),
     "Continue the following conversation. Use the prior messages as context when answering.",
     "",
     "=== Conversation history ===",
@@ -28,7 +41,7 @@ export function buildPromptWithHistory(userText: string, messages: Message[]): s
     "",
     "=== Latest user message ===",
     userText,
-  ].join("\n");
+  ].join("\n").trim();
 }
 
 export interface RetrievedChunk {
@@ -39,7 +52,8 @@ export interface RetrievedChunk {
 export function buildPromptWithRetrievedChunks(
   userText: string,
   messages: Message[],
-  chunks: RetrievedChunk[]
+  chunks: RetrievedChunk[],
+  customPrompt?: string | null
 ): string {
   const history = getHistoryMessages(messages);
   const historyText = history.length
@@ -56,6 +70,7 @@ export function buildPromptWithRetrievedChunks(
     .join("\n\n");
 
   return [
+    ...buildSystemInstruction(customPrompt),
     "You are a helpful assistant answering questions based on uploaded documents.",
     "Use ONLY the provided document excerpts to answer the user's question.",
     "If the excerpts do not contain enough information, say so clearly.",
@@ -70,5 +85,5 @@ export function buildPromptWithRetrievedChunks(
     "",
     "=== Latest user message ===",
     userText,
-  ].join("\n");
+  ].join("\n").trim();
 }

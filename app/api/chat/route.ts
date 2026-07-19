@@ -12,7 +12,7 @@ import { buildPromptWithHistory, buildPromptWithRetrievedChunks } from "@/servic
 import { runChatPipeline } from "@/services/chat-pipeline";
 import { retrieveRelevantChunks } from "@/lib/ai/retrieval";
 import { db } from "@/lib/db";
-import { document } from "@/lib/db/schema";
+import { document, userSettings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import type { Message } from "@/app/chats/types";
 
@@ -55,6 +55,12 @@ export async function POST(req: NextRequest) {
       await linkDocumentsToMessage({ messageId: userMessageId, documentIds });
     }
 
+    const settingsRow = await db.query.userSettings.findFirst({
+      where: eq(userSettings.userId, userId),
+    });
+    const preferredModel = settingsRow?.preferredModel ?? null;
+    const customPrompt = settingsRow?.customPrompt ?? null;
+
     const hasDocuments = Array.isArray(documentIds) && documentIds.length > 0;
     let promptText: string;
 
@@ -80,10 +86,11 @@ export async function POST(req: NextRequest) {
         chunks.map((chunk) => ({
           content: chunk.content,
           documentName: nameById.get(chunk.documentId),
-        }))
+        })),
+        customPrompt
       );
     } else {
-      promptText = buildPromptWithHistory(userText, messages as Message[]);
+      promptText = buildPromptWithHistory(userText, messages as Message[], customPrompt);
     }
 
     const result = await runChatPipeline({
@@ -93,6 +100,7 @@ export async function POST(req: NextRequest) {
       userText,
       promptText,
       hasDocuments,
+      preferredModel,
     });
 
     if (result.type === "error") {

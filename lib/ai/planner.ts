@@ -1,5 +1,5 @@
 import { FunctionCallingConfigMode } from "@google/genai";
-import { MAX_PLANNER_SEARCHES } from "./config";
+import { MAX_PLANNER_SEARCHES } from "./constants";
 import { withModelFallback, createChat } from "./model-router";
 import {
   webSearchPlanToolDeclaration,

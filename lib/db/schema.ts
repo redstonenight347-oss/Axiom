@@ -138,3 +138,30 @@ export const documentChunkRelations = relations(documentChunk, ({ one }) => ({
 export const embeddingRelations = relations(embedding, ({ one }) => ({
   chunk: one(documentChunk, { fields: [embedding.chunkId], references: [documentChunk.id] }),
 }));
+
+export const userSettings = pgTable("user_settings", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().unique().references(() => user.id, { onDelete: "cascade" }),
+  preferredModel: text("preferred_model"),
+  customPrompt: text("custom_prompt"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const modelUsage = pgTable("model_usage", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  model: text("model").notNull(),
+  requestsUsed: integer("requests_used").notNull().default(0),
+  tokensUsed: integer("tokens_used").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(user, { fields: [userSettings.userId], references: [user.id] }),
+}));
+
+export const modelUsageRelations = relations(modelUsage, ({ one }) => ({
+  user: one(user, { fields: [modelUsage.userId], references: [user.id] }),
+}));

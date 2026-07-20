@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const publicRoutes = [
+  "/",
+  "/auth",
+];
+
 export async function proxy(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, origin } = req.nextUrl;
 
   const isPublic =
+    publicRoutes.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
-    pathname === "/auth" ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon");
+    pathname.startsWith("/favicon") ||
+    /\.(png|jpg|jpeg|svg|gif|webp|ico)$/.test(pathname);
 
   if (isPublic) {
     return NextResponse.next();
   }
 
-  const session = await fetch(`${req.nextUrl.origin}/api/auth/get-session`, {
-    headers: { cookie: req.headers.get("cookie") ?? "" },
+  const session = await fetch(`${origin}/api/auth/get-session`, {
+    headers: {
+      cookie: req.headers.get("cookie") ?? "",
+    },
   }).then((res) => (res.ok ? res.json() : null));
 
   if (!session?.user?.id) {
@@ -23,7 +31,3 @@ export async function proxy(req: NextRequest) {
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
-};

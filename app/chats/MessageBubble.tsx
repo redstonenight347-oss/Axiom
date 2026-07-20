@@ -16,7 +16,7 @@ function PdfBadge({ doc }: { doc: AttachedDocument }) {
   return (
     <div className="inline-flex items-center gap-1.5 rounded-md border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs sm:text-sm">
       <span className="font-bold text-red-400">PDF</span>
-      <span className="truncate max-w-[12rem] sm:max-w-[16rem] text-white/80" title={doc.name}>
+      <span className="truncate max-w-48 sm:max-w-[16rem] text-white/80" title={doc.name}>
         {doc.name}
       </span>
     </div>

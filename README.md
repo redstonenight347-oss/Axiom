@@ -1,6 +1,9 @@
 # Axiom
 
-Axiom is a modern, multi-user AI chatbot built with **Next.js 16**, **React 19**, and **TypeScript**. It delivers a ChatGPT/Claude-like experience with streaming responses, optional web search, and PDF-based document Q&A using vector retrieval (RAG).
+A modern, multi-user AI chatbot built with **Next.js 16**, **React 19**, and **TypeScript**. Axiom delivers a ChatGPT/Claude-like experience with streaming responses, optional web search, and PDF-based document Q&A using vector retrieval (RAG).
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-axiom--rag--app.vercel.app-000?logo=vercel&logoColor=white&style=for-the-badge)](https://axiom-rag-app.vercel.app)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-redstonenight%2Faxiom%3Alatest-2496ed?logo=docker&logoColor=white&style=for-the-badge)](https://hub.docker.com/r/redstonenight/axiom)
 
 ![Tech stack](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
 ![Gemini](https://img.shields.io/badge/Gemini-AI-blue?logo=google)
@@ -60,7 +63,7 @@ Axiom is a modern, multi-user AI chatbot built with **Next.js 16**, **React 19**
 
 1. PDFs are parsed and cleaned (`lib/pdf/*`).
 2. Text is split into overlapping chunks (`lib/pdf/chunker.ts`).
-3. Chunks are embedded with Gemini and stored in `embedding` table (`lib/ai/embeddings.ts`).
+3. Chunks are embedded with Gemini and stored in the `embedding` table (`lib/ai/embeddings.ts`).
 4. User queries are embedded and matched via pgvector cosine similarity (`lib/ai/retrieval.ts`).
 5. Top-k chunks are injected into the prompt for grounded answers.
 
@@ -107,42 +110,42 @@ drizzle/                # Generated migrations
 ### Prerequisites
 
 - Node.js 20+
-- A Neon Postgres database (or any Postgres with `pgvector` extension)
-- API keys for Gemini and Tavily
-- (Optional) Google OAuth credentials
+- A Postgres database with the `pgvector` extension enabled (e.g., Neon)
+- A [Google AI Studio](https://aistudio.google.com/) API key for Gemini
+- A [Tavily](https://tavily.com/) API key for web search
+- (Optional) Google OAuth credentials for social sign-in
 
-### 1. Install dependencies
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/redstonenight347-oss/Axiom.git
+cd Axiom
 npm install
 ```
 
 ### 2. Configure environment variables
 
-Create a `.env.local` file in the project root:
+Copy the example file and fill in your credentials:
 
-```env
-# AI providers
-GEMINI_API_KEY=your_gemini_api_key
-TAVILY_API_KEY=your_tavily_api_key
-GEMINI_EMBEDDING_MODEL=gemini-embedding-2
-
-# Database (Neon serverless Postgres)
-DATABASE_URL=postgresql://user:password@host/database?sslmode=require
-
-# Better Auth
-BETTER_AUTH_SECRET=your_random_secret
-BETTER_AUTH_URL=http://localhost:3000
-NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
-
-# Optional: Google OAuth
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# Optional: upload limits
-MAX_UPLOAD_SIZE_MB=10
-NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=10
+```bash
+cp .env.example .env.local
 ```
+
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `TAVILY_API_KEY` | Tavily search API key |
+| `DATABASE_URL` | Postgres connection string (must include `pgvector`) |
+| `BETTER_AUTH_SECRET` | Random secret for Better Auth session signing |
+| `BETTER_AUTH_URL` | Better Auth base URL (`http://localhost:3000` locally) |
+| `NEXT_PUBLIC_BETTER_AUTH_URL` | Public Better Auth base URL |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (optional) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (optional) |
+| `MAX_UPLOAD_SIZE_MB` | Server-side PDF upload limit |
+| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | Client-side PDF upload limit |
+| `GEMINI_EMBEDDING_MODEL` | Gemini embedding model name (default: `gemini-embedding-2`) |
+
+See [`.env.example`](.env.example) for the full template.
 
 ### 3. Push the database schema
 
@@ -175,34 +178,47 @@ Open [http://localhost:3000](http://localhost:3000). Unauthenticated users are r
 
 ## Deployment
 
-Axiom is designed to run on Vercel or any Node.js hosting platform that supports Next.js:
+### Vercel
 
-1. Set all environment variables in your hosting dashboard.
-2. Ensure your Postgres provider has the `pgvector` extension enabled.
-3. Run `npm run db:push` (or `npm run db:migrate`) against your production database.
-4. Deploy with `npm run build`.
+Axiom is deployed live at **https://axiom-rag-app.vercel.app**.
+
+To deploy your own instance:
+
+1. Import the repository into [Vercel](https://vercel.com/).
+2. Add all environment variables from `.env.example` to the Vercel dashboard.
+3. Ensure your Postgres provider has the `pgvector` extension enabled.
+4. Run `npm run db:push` (or `npm run db:migrate`) against your production database.
+5. Deploy with `npm run build`.
 
 ### Docker
 
-You can also build and run Axiom as a Docker container.
+A pre-built image is available on Docker Hub:
 
-**Build the image:**
+**Pull and run:**
+
+```bash
+docker pull redstonenight/axiom:latest
+
+docker run -d \
+  -p 3000:3000 \
+  --env-file .env.local \
+  --name axiom \
+  redstonenight/axiom:latest
+```
+
+The container starts the Next.js standalone server on port `3000`. Make sure your `.env.local` contains all required variables (see the [environment variables](#2-configure-environment-variables) section).
+
+**Build locally (optional):**
 
 ```bash
 docker build -t axiom .
-```
 
-**Run the container:**
-
-```bash
 docker run -d \
   -p 3000:3000 \
   --env-file .env.local \
   --name axiom \
   axiom
 ```
-
-Make sure your `.env.local` contains all required variables (see the [Configure environment variables](#2-configure-environment-variables) section). The container starts the Next.js standalone server on port `3000`.
 
 ## License
 

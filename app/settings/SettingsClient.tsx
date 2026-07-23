@@ -34,6 +34,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
   const router = useRouter();
   const isMobileSidebarOpen = useChatStore((state) => state.isMobileSidebarOpen);
   const setIsMobileSidebarOpen = useChatStore((state) => state.setIsMobileSidebarOpen);
+  const loadChats = useChatStore((state) => state.loadChats);
 
   const [settings, setSettings] = useState<UserSettings>({});
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,17 @@ export function SettingsClient({ user }: SettingsClientProps) {
       cancelled = true;
     };
   }, []);
+
+  /* Load chat list once on mount so the sidebar shows previous chats */
+  useEffect(() => {
+    let cancelled = false;
+    loadChats().then(() => {
+      if (cancelled) return;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadChats]);
 
   const saveSettings = async (next: UserSettings) => {
     setSaving(true);

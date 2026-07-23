@@ -34,13 +34,14 @@ export async function executeSearchPlan(
         purpose: item.purpose,
         results,
       };
-    } catch (error: any) {
-      console.error(`[Executor] All retries failed for query "${item.query}": ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Search failed";
+      console.error(`[Executor] All retries failed for query "${item.query}": ${message}`);
       return {
         query: item.query,
         purpose: item.purpose,
         results: [],
-        error: error.message ?? "Search failed",
+        error: message,
       };
     }
   });

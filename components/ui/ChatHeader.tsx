@@ -40,10 +40,13 @@ export function ChatHeader() {
           </svg>
         </button>
 
-        <img 
-          alt="Axiom AI" 
-          className="w-8 h-8 md:hidden rounded-lg shadow-lg" 
+        <Image
+          alt="Axiom AI"
+          className="w-8 h-8 md:hidden rounded-lg shadow-lg"
           src="/axiom_logo.png"
+          width={32}
+          height={32}
+          priority
         />
         <span className="text-headline-md font-headline-md tracking-tight text-on-surface">
           Axiom AI

@@ -125,7 +125,7 @@ function buildReportPromptFromRawResults(
   plan: WebSearchPlan,
   executedSearches: ExecutedSearch[]
 ): string {
-  const sortedSearches = executedSearches.sort((a, b) => {
+  const sortedSearches = executedSearches.sort(() => {
     // We don't have priority here, so keep original order.
     return 0;
   });

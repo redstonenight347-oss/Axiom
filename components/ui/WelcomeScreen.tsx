@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useChatStore } from "@/store/chatStore";
 import { WELCOME_SUGGESTIONS } from "@/app/chats/types";
 
@@ -23,10 +24,13 @@ export function WelcomeScreen() {
       <div className="max-w-2xl w-full text-center flex flex-col items-center gap-lg">
         <div className="relative">
           <div className="absolute inset-0 blur-3xl bg-primary/20 scale-150 animate-pulse"></div>
-          <img 
-            alt="Axiom Central Logo" 
-            className="w-32 h-32 md:w-40 md:h-40 rounded-4xl relative z-10 animate-axiom-pulse shadow-2xl" 
+          <Image
+            alt="Axiom Central Logo"
+            className="w-32 h-32 md:w-40 md:h-40 rounded-4xl relative z-10 animate-axiom-pulse shadow-2xl"
             src="/favicon.png"
+            width={160}
+            height={160}
+            priority
           />
         </div>
         

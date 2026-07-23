@@ -122,15 +122,16 @@ async function summarizeOneSearch(
       keyFacts,
       sources,
     };
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Summarization failed";
     return {
       query: search.query,
       purpose: search.purpose,
       priority,
-      summary: `Summarization failed: ${error.message ?? "Unknown error"}`,
+      summary: `Summarization failed: ${message}`,
       keyFacts: [],
       sources,
-      error: error.message ?? "Summarization failed",
+      error: message,
     };
   }
 }

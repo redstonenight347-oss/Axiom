@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "@/store/chatStore";
 import Image from "next/image";
@@ -32,10 +32,13 @@ export function ChatSidebar() {
     <aside className="flex flex-col h-full py-md px-sm gap-y-sm bg-surface-container-lowest/3 backdrop-blur-3xl border-r border-outline-variant/20 w-82 shrink-0 transition-all">
       {/* Header/Logo Area */}
       <div className="flex items-center gap-sm px-xs mb-md mt-2">
-        <img  
+        <Image
           alt="Axiom AI"
           className="w-24 h-22 rounded-lg shadow-lg"
           src="/axiom_logo.png"
+          width={96}
+          height={88}
+          priority
         />
         <div className="flex flex-col">
           <span className="text-headline-md font-headline-md font-black text-on-surface tracking-tight">Axiom AI</span>

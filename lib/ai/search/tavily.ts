@@ -95,12 +95,14 @@ export class TavilySearchProvider implements SearchProvider {
         }
 
         return results;
-      } catch (error: any) {
-        lastError = error;
-        const isTimeout = error.name === "AbortError" || error.message?.includes("abort");
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const isTimeout =
+          lastError.name === "AbortError" ||
+          lastError.message.includes("abort");
         const errorMessage = isTimeout
           ? `Tavily request timed out after ${TAVILY_TIMEOUT_MS}ms`
-          : error.message ?? "Unknown error";
+          : lastError.message;
 
         console.error(
           `[Tavily] Search attempt ${attempt}/${TAVILY_MAX_RETRIES} failed for query "${query}": ${errorMessage}`

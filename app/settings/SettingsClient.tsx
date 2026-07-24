@@ -22,8 +22,9 @@ interface UserSettings {
 
 interface UsageItem {
   model: string;
-  requestsUsed: number;
-  tokensUsed: number;
+  requestsUsedMinute: number;
+  requestsUsedDay: number;
+  tokensUsedDay: number;
 }
 
 interface SettingsClientProps {
@@ -302,13 +303,14 @@ export function SettingsClient({ user }: SettingsClientProps) {
                       {GEMINI_MODELS.map((model) => {
                         const limits = MODEL_LIMITS[model];
                         const item = usage.find((u) => u.model === model);
-                        const requestsUsed = item?.requestsUsed ?? 0;
-                        const tokensUsed = item?.tokensUsed ?? 0;
+                        const requestsUsedMinute = item?.requestsUsedMinute ?? 0;
+                        const requestsUsedDay = item?.requestsUsedDay ?? 0;
+                        const tokensUsedDay = item?.tokensUsedDay ?? 0;
 
-                        const tpmRemaining = Math.max(0, limits.tpm - tokensUsed);
+                        const tpmRemaining = Math.max(0, limits.tpm - tokensUsedDay);
                         const tpmProgress = Math.min(
                           100,
-                          Math.round((tokensUsed / limits.tpm) * 100)
+                          Math.round((tokensUsedDay / limits.tpm) * 100)
                         );
 
                         return (
@@ -339,10 +341,10 @@ export function SettingsClient({ user }: SettingsClientProps) {
 
                             <div className="flex items-center justify-between text-body-sm text-on-surface-variant">
                               <span>
-                                {requestsUsed} / {limits.rpm} req per minute
+                                {requestsUsedMinute} / {limits.rpm} req per minute
                               </span>
                               <span>
-                                {requestsUsed} / {limits.rpd} req per day
+                                {requestsUsedDay} / {limits.rpd} req per day
                               </span>
                             </div>
                           </div>

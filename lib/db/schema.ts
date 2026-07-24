@@ -4,6 +4,7 @@ import {
   timestamp,
   boolean,
   integer,
+  bigint,
   vector,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -152,8 +153,16 @@ export const modelUsage = pgTable("model_usage", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   model: text("model").notNull(),
-  requestsUsed: integer("requests_used").notNull().default(0),
-  tokensUsed: integer("tokens_used").notNull().default(0),
+  /** Requests consumed in the current 1-minute rolling window. */
+  requestsUsedMinute: integer("requests_used_minute").notNull().default(0),
+  /** Requests consumed in the current 24-hour rolling window. */
+  requestsUsedDay: integer("requests_used_day").notNull().default(0),
+  /** Tokens consumed in the current 24-hour rolling window. */
+  tokensUsedDay: integer("tokens_used_day").notNull().default(0),
+  /** When the current 1-minute window expires (ms since epoch). */
+  minuteResetAt: bigint("minute_reset_at", { mode: "number" }).notNull().default(0),
+  /** When the current 24-hour window expires (ms since epoch). */
+  dayResetAt: bigint("day_reset_at", { mode: "number" }).notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

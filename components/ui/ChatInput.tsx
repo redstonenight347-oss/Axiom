@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 
 const MAX_UPLOAD_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB ?? "10");
@@ -14,6 +14,11 @@ export function ChatInput() {
   const textareaRef = useChatStore((state) => state.textareaRef);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const setInput = useChatStore((state) => state.setInput);
   const handleSubmit = useChatStore((state) => state.handleSubmit);
@@ -138,7 +143,7 @@ export function ChatInput() {
 
             <button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!mounted || !canSubmit}
               className="shrink-0 flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-linear-to-br from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/25 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed hover:shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
             >
               <svg
